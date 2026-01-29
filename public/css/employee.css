@@ -45,6 +45,7 @@ body {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -73,9 +74,12 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.05);
   }
@@ -396,9 +400,12 @@ body {
 }
 
 @keyframes bounce {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-10px);
   }
@@ -651,12 +658,16 @@ body {
 }
 
 @keyframes shake {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateX(0);
   }
+
   25% {
     transform: translateX(-10px);
   }
+
   75% {
     transform: translateX(10px);
   }
@@ -664,12 +675,13 @@ body {
 
 /* Responsive */
 @media (max-width: 768px) {
+
   .shift-details,
   .session-stats,
   .location-info {
     grid-template-columns: 1fr;
   }
-  
+
   .map-container {
     height: 300px;
   }
@@ -692,4 +704,172 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+/* Walkie-Talkie Styles */
+.radio-section {
+  margin-top: 2rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.online-status {
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger-color);
+}
+
+.online-status.online .status-dot {
+  background: var(--success-color);
+  box-shadow: 0 0 10px var(--success-color);
+}
+
+.radio-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.input-select {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  font-size: 1rem;
+}
+
+.radio-display {
+  background: #000;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  text-align: center;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4px solid var(--bg-tertiary);
+}
+
+.incoming-info {
+  color: var(--success-color);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  animation: ptt-glow 1s infinite alternate;
+}
+
+@keyframes ptt-glow {
+  from {
+    opacity: 0.6;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.wave-icon {
+  font-size: 1.5rem;
+}
+
+.idle-info {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.ptt-container {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0;
+}
+
+.ptt-button {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 8px solid var(--bg-tertiary);
+  background: linear-gradient(135deg, var(--bg-tertiary), #1a2233);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4), inset 0 2px 5px rgba(255, 255, 255, 0.05);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.ptt-button:active:not(:disabled) {
+  transform: scale(0.92);
+  border-color: var(--danger-color);
+  background: linear-gradient(135deg, #451a1a, var(--danger-color));
+  box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);
+}
+
+.ptt-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.ptt-button.recording {
+  border-color: var(--danger-color);
+  background: var(--danger-color);
+  animation: ptt-pulse 1.5s infinite;
+}
+
+@keyframes ptt-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+
+  70% {
+    box-shadow: 0 0 0 20px rgba(239, 68, 68, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.ptt-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ptt-icon {
+  font-size: 3rem;
+}
+
+.ptt-text {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.ptt-button:active:not(:disabled) .ptt-text,
+.ptt-button.recording .ptt-text {
+  color: white;
 }

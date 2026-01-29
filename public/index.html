@@ -150,6 +150,49 @@
                 <div id="scan-history" class="scan-history"></div>
             </div>
         </section>
+
+        <!-- Рация (Walkie-Talkie) -->
+        <section class="radio-section">
+            <div class="control-card">
+                <div class="section-header">
+                    <h2 class="section-title">Рация (PTT)</h2>
+                    <div id="radio-online-status" class="online-status">
+                        <span class="status-dot"></span> <span id="radio-status-text">Оффлайн</span>
+                    </div>
+                </div>
+
+                <div class="radio-controls">
+                    <div class="form-group">
+                        <label>Канал вещания</label>
+                        <select id="radio-channel" class="input-select">
+                            <option value="general">Общий канал</option>
+                            <option value="kpp">КПП</option>
+                            <option value="patrol">Патрульные</option>
+                            <option value="emergency">Экстренный</option>
+                        </select>
+                    </div>
+
+                    <div id="radio-display" class="radio-display">
+                        <div id="radio-incoming" class="incoming-info" style="display: none;">
+                            <span class="wave-icon">🔊</span>
+                            Говорит: <span id="radio-sender-name">...</span>
+                        </div>
+                        <div id="radio-idle" class="idle-info">
+                            Канал свободен
+                        </div>
+                    </div>
+
+                    <div class="ptt-container">
+                        <button id="ptt-button" class="ptt-button" disabled>
+                            <div class="ptt-inner">
+                                <span class="ptt-icon">🎙️</span>
+                                <span class="ptt-text">ЗАЖМИТЕ ЧТОБЫ ГОВОРИТЬ</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
 
     <!-- QR Scanner Modal -->
@@ -170,6 +213,7 @@
         </div>
     </div>
 
+    <script src="/socket.io/socket.io.js"></script>
     <script src="/js/employee-app.js"></script>
 </body>
 
