@@ -346,18 +346,20 @@ function showNoShift() {
 
 function updateShiftTimeRemaining(shift) {
     const now = new Date();
-    const shiftEnd = new Date();
+    // Приводим время окончания к формату текущей даты для расчета разницы
     const [hours, minutes] = shift.shift_end.split(':');
+    const shiftEnd = new Date();
     shiftEnd.setHours(parseInt(hours), parseInt(minutes), 0);
 
     const diff = shiftEnd - now;
+    const timeRemainingEl = document.getElementById('shift-time-remaining');
+
     if (diff > 0) {
         const hoursLeft = Math.floor(diff / (1000 * 60 * 60));
         const minutesLeft = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        document.getElementById('shift-time-remaining').textContent =
-            `Осталось: ${hoursLeft}ч ${minutesLeft}м`;
+        timeRemainingEl.textContent = `До конца смены: ${hoursLeft}ч ${minutesLeft}м`;
     } else {
-        document.getElementById('shift-time-remaining').textContent = 'Смена завершена';
+        timeRemainingEl.textContent = 'Смена завершена';
     }
 }
 

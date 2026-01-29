@@ -63,19 +63,17 @@
                 </div>
             </div>
             <div id="active-shift" class="shift-card" style="display: none;">
-                <div class="shift-header">
-                    <span class="shift-badge">Активная смена</span>
-                    <span id="shift-time-remaining" class="shift-time"></span>
+                <div class="shift-header-minimal">
+                    <div class="status-indicator">
+                        <span class="status-dot-small"></span>
+                        <span class="status-label-small">Активная</span>
+                    </div>
+                    <div class="shift-times-row">
+                        <span id="shift-start">08:00</span> — <span id="shift-end">20:00</span>
+                    </div>
                 </div>
-                <div class="shift-details">
-                    <div class="shift-detail-item">
-                        <span class="label">Начало:</span>
-                        <span id="shift-start" class="value">--:--</span>
-                    </div>
-                    <div class="shift-detail-item">
-                        <span class="label">Окончание:</span>
-                        <span id="shift-end" class="value">--:--</span>
-                    </div>
+                <div class="shift-footer">
+                    <span id="shift-time-remaining" class="shift-time-low"></span>
                 </div>
             </div>
         </section>
