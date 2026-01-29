@@ -977,7 +977,7 @@ function showShiftModal(shift = null) {
           </div>
           <div class="form-group">
             <label>Дата</label>
-            <input type="date" name="shift_date" class="input-field" value="${isEdit ? shift.shift_date : new Date().toISOString().split('T')[0]}" required>
+            <input type="date" name="shift_date" class="input-field" value="${isEdit ? (shift.shift_date.includes('T') ? shift.shift_date.split('T')[0] : shift.shift_date) : new Date().toISOString().split('T')[0]}" required>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -1030,7 +1030,7 @@ function showShiftModal(shift = null) {
 
 async function editShift(id) {
   try {
-    const data = await apiRequest(`/shifts?user_id`);
+    const data = await apiRequest('/shifts');
     const shift = data.shifts.find(s => s.id === id);
     if (shift) showShiftModal(shift);
   } catch (error) {
