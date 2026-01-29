@@ -615,9 +615,15 @@ function showCheckpointModal(checkpoint = null) {
           <label>Название</label>
           <input type="text" name="name" class="input-field" value="${isEdit ? checkpoint.name : ''}" required>
         </div>
+        
+        <div class="form-group">
+          <label>Выберите местоположение на карте (кликните или перетащите маркер)</label>
+          <div id="modal-map" style="height: 350px; width: 100%; margin-bottom: 1rem; border-radius: 0.5rem; overflow: hidden; border: 1px solid var(--border);"></div>
+        </div>
+
         <div class="form-group">
           <label>Описание</label>
-          <textarea name="description" class="input-field" rows="3">${isEdit ? (checkpoint.description || '') : ''}</textarea>
+          <textarea name="description" class="input-field" rows="2">${isEdit ? (checkpoint.description || '') : ''}</textarea>
         </div>
         <div class="form-group">
           <label>Тип</label>
@@ -629,11 +635,11 @@ function showCheckpointModal(checkpoint = null) {
         <div class="form-row">
           <div class="form-group">
             <label>Широта</label>
-            <input type="number" step="0.000001" name="latitude" class="input-field" value="${isEdit ? checkpoint.latitude : '55.751244'}" required>
+            <input type="number" step="0.000001" name="latitude" id="modal-lat" class="input-field" value="${isEdit ? checkpoint.latitude : '55.751244'}" required>
           </div>
           <div class="form-group">
             <label>Долгота</label>
-            <input type="number" step="0.000001" name="longitude" class="input-field" value="${isEdit ? checkpoint.longitude : '37.618423'}" required>
+            <input type="number" step="0.000001" name="longitude" id="modal-lng" class="input-field" value="${isEdit ? checkpoint.longitude : '37.618423'}" required>
           </div>
         </div>
         <div class="form-group">
@@ -647,6 +653,64 @@ function showCheckpointModal(checkpoint = null) {
       </form>
     `,
     onLoad: () => {
+      // Initialize map inside timeout to ensure container is ready
+      setTimeout(() => {
+        const initialLat = parseFloat(isEdit ? checkpoint.latitude : 55.751244);
+        const initialLng = parseFloat(isEdit ? checkpoint.longitude : 37.618423);
+
+        ymaps.ready(() => {
+          const mContainer = document.getElementById('modal-map');
+          if (!mContainer) return;
+
+          const modalMap = new ymaps.Map('modal-map', {
+            center: [initialLat, initialLng],
+            zoom: 15,
+            controls: ['zoomControl', 'fullscreenControl', 'typeSelector']
+          });
+
+          // Create marker
+          const modalMarker = new ymaps.Placemark([initialLat, initialLng], {
+            balloonContent: 'Выбранная точка'
+          }, {
+            preset: 'islands#blueDotIconWithCaption',
+            draggable: true
+          });
+
+          modalMap.geoObjects.add(modalMarker);
+
+          // Update inputs when marker is dragged
+          modalMarker.events.add('dragend', () => {
+            const coords = modalMarker.geometry.getCoordinates();
+            document.getElementById('modal-lat').value = coords[0].toFixed(6);
+            document.getElementById('modal-lng').value = coords[1].toFixed(6);
+          });
+
+          // Click on map to move marker
+          modalMap.events.add('click', (e) => {
+            const coords = e.get('coords');
+            modalMarker.geometry.setCoordinates(coords);
+            document.getElementById('modal-lat').value = coords[0].toFixed(6);
+            document.getElementById('modal-lng').value = coords[1].toFixed(6);
+          });
+
+          // Sync inputs back to map if manually changed
+          ['modal-lat', 'modal-lng'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => {
+              const latInput = document.getElementById('modal-lat');
+              const lngInput = document.getElementById('modal-lng');
+              if (!latInput || !lngInput) return;
+
+              const lat = parseFloat(latInput.value);
+              const lng = parseFloat(lngInput.value);
+              if (!isNaN(lat) && !isNaN(lng)) {
+                modalMarker.geometry.setCoordinates([lat, lng]);
+                modalMap.setCenter([lat, lng]);
+              }
+            });
+          });
+        });
+      }, 100);
+
       document.getElementById('checkpointForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
