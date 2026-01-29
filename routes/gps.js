@@ -16,8 +16,8 @@ router.post('/session/start', authenticateToken, async (req, res) => {
 
             // Проверка активной смены
             const now = new Date();
-            const currentDate = now.toISOString().split('T')[0];
-            const currentTime = now.toTimeString().split(' ')[0];
+            const currentDate = now.toLocaleDateString('en-CA');
+            const currentTime = now.toLocaleTimeString('en-GB', { hour12: false });
 
             const shiftResult = await client.query(
                 `SELECT * FROM shifts 

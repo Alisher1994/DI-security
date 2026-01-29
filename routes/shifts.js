@@ -55,9 +55,10 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/current', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
+        // Используем форматирование для получения локальной даты и времени сервера (с учетом TZ)
         const now = new Date();
-        const currentDate = now.toISOString().split('T')[0];
-        const currentTime = now.toTimeString().split(' ')[0];
+        const currentDate = now.toLocaleDateString('en-CA'); // Формат YYYY-MM-DD
+        const currentTime = now.toLocaleTimeString('en-GB', { hour12: false }); // Формат HH:MM:SS
 
         const result = await pool.query(
             `SELECT * FROM shifts 
