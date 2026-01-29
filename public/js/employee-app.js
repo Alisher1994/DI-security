@@ -207,11 +207,39 @@ async function initializeMainScreen() {
     // Load scan history
     await loadScanHistory();
 
+    // ПРОВЕРКА АКТИВНОЙ СЕССИИ (Восстановление состояния)
+    await checkActiveSession();
+
     // Start realtime updates
     startRealtimeUpdates();
 
     // Init Radio
     initRadio();
+}
+
+async function checkActiveSession() {
+    try {
+        const data = await apiRequest('/gps/sessions?active_only=true');
+        const activeSessions = data.sessions.filter(s => s.is_active);
+
+        if (activeSessions.length > 0) {
+            patrolSession = activeSessions[0];
+            // Восстанавливаем счетчик сканов этой сессии
+            scanCount = parseInt(patrolSession.scan_count) || 0;
+
+            document.getElementById('session-scans').textContent = scanCount;
+            document.getElementById('session-inactive').style.display = 'none';
+            document.getElementById('session-active').style.display = 'block';
+
+            // Запускаем GPS и Таймер (с учетом времени начала сессии)
+            startGPSTracking();
+            startSessionTimer(new Date(patrolSession.session_start));
+
+            console.log('🔄 Сессия патрулирования восстановлена');
+        }
+    } catch (error) {
+        console.error('Ошибка при проверке активной сессии:', error);
+    }
 }
 
 // Radio Functionality
@@ -487,8 +515,9 @@ async function stopPatrolSession() {
     }
 }
 
-function startSessionTimer() {
-    const startTime = new Date();
+function startSessionTimer(startTime = new Date()) {
+    // Очищаем старый интервал если есть
+    if (sessionInterval) clearInterval(sessionInterval);
 
     sessionInterval = setInterval(() => {
         const now = new Date();
