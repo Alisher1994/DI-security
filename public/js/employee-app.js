@@ -45,8 +45,11 @@ function setupEventListeners() {
     if (pttButton) {
         pttButton.addEventListener('mousedown', startTransmission);
         pttButton.addEventListener('mouseup', stopTransmission);
+        pttButton.addEventListener('mouseleave', stopTransmission); // Если мышка ушла с кнопки
+
         pttButton.addEventListener('touchstart', (e) => { e.preventDefault(); startTransmission(); });
         pttButton.addEventListener('touchend', (e) => { e.preventDefault(); stopTransmission(); });
+        pttButton.addEventListener('touchcancel', (e) => { e.preventDefault(); stopTransmission(); }); // Если палец ушел
     }
 
     const channelSelect = document.getElementById('radio-channel');
@@ -609,13 +612,20 @@ async function submitManualQR() {
 }
 
 async function processQRScan(qrCode) {
+    console.log('🔍 Начинаю обработку QR:', qrCode);
     if (!navigator.geolocation) {
         showNotification('GPS не поддерживается', 'error');
         return;
     }
 
+    // Показываем индикатор загрузки
+    const resultEl = document.getElementById('scan-result');
+    resultEl.innerHTML = '<div style="text-align: center;">⌛ Обработка...</div>';
+    resultEl.className = 'scan-result';
+
     navigator.geolocation.getCurrentPosition(async (position) => {
-        const { latitude, longitude } = position.coords;
+        const { latitude, longitude, accuracy } = position.coords;
+        console.log(`📍 Мои координаты: ${latitude}, ${longitude} (Точность: ${accuracy}м)`);
 
         try {
             const data = await apiRequest('/scans/scan', {
@@ -627,48 +637,58 @@ async function processQRScan(qrCode) {
                 })
             });
 
-            // Update scan count if in session
+            console.log('✅ Ответ сервера:', data);
+
+            // Обновляем счетчик если идет патруль
             if (patrolSession) {
                 scanCount++;
                 document.getElementById('session-scans').textContent = scanCount;
             }
 
-            // Show success
-            const resultEl = document.getElementById('scan-result');
+            // Показываем успех
             resultEl.innerHTML = `
-        <div style="text-align: center;">
-          <div style="font-size: 3rem; margin-bottom: 0.5rem;">✅</div>
-          <div style="font-weight: 600; margin-bottom: 0.5rem;">Успешно!</div>
-          <div>${data.checkpoint.name}</div>
-          <div style="font-size: 0.875rem; margin-top: 0.5rem; opacity: 0.7;">
-            Расстояние: ${Math.round(data.distance_meters)} м
-          </div>
-        </div>
-      `;
+                <div style="text-align: center;">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">✅</div>
+                    <div style="font-weight: 700; color: var(--success-color); margin-bottom: 0.25rem;">ОТМЕТКА ПРИНЯТА</div>
+                    <div style="font-size: 1rem; font-weight: 600;">${data.checkpoint.name}</div>
+                    <div style="font-size: 0.75rem; margin-top: 0.5rem; color: var(--text-muted);">
+                        Расстояние: ${Math.round(data.distance_meters)} м
+                    </div>
+                </div>
+            `;
             resultEl.className = 'scan-result success';
 
-            // Reload scan history
+            showNotification('Отметка успешно сохранена', 'success');
+
+            // Перезагружаем историю через 3 секунды и очищаем результат
             setTimeout(() => {
                 loadScanHistory();
-                document.getElementById('manual-qr-input').value = '';
-            }, 2000);
+                resultEl.innerHTML = '';
+                resultEl.className = 'scan-result';
+            }, 5000);
 
-            showNotification('QR-код успешно отсканирован', 'success');
         } catch (error) {
-            const resultEl = document.getElementById('scan-result');
+            console.error('❌ Ошибка сканирования:', error);
+
             resultEl.innerHTML = `
-        <div style="text-align: center;">
-          <div style="font-size: 3rem; margin-bottom: 0.5rem;">❌</div>
-          <div style="font-weight: 600; margin-bottom: 0.5rem;">Ошибка</div>
-          <div>${error.message}</div>
-        </div>
-      `;
+                <div style="text-align: center;">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">❌</div>
+                    <div style="font-weight: 700; color: var(--danger-color); margin-bottom: 0.25rem;">НЕ СОХРАНЕНО</div>
+                    <div style="font-size: 0.875rem;">${error.message}</div>
+                </div>
+            `;
             resultEl.className = 'scan-result error';
 
             showNotification(error.message, 'error');
         }
     }, (error) => {
-        showNotification('Не удалось получить GPS координаты', 'error');
+        console.error('❌ Ошибка GPS:', error);
+        showNotification('Не удалось получить GPS: ' + error.message, 'error');
+        resultEl.innerHTML = '<div style="text-align: center;">❌ Ошибка GPS</div>';
+    }, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
     });
 }
 

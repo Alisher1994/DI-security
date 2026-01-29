@@ -2,13 +2,13 @@ import pool from '../config/db.js';
 import bcrypt from 'bcryptjs';
 
 async function initDatabase() {
-    const client = await pool.connect();
+  const client = await pool.connect();
 
-    try {
-        console.log('🚀 Начало инициализации базы данных...');
+  try {
+    console.log('🚀 Начало инициализации базы данных...');
 
-        // Создание таблицы пользователей
-        await client.query(`
+    // Создание таблицы пользователей
+    await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
@@ -20,10 +20,10 @@ async function initDatabase() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-        console.log('✅ Таблица users создана');
+    console.log('✅ Таблица users создана');
 
-        // Создание таблицы контрольных точек (QR коды)
-        await client.query(`
+    // Создание таблицы контрольных точек (QR коды)
+    await client.query(`
       CREATE TABLE IF NOT EXISTS checkpoints (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -38,10 +38,10 @@ async function initDatabase() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-        console.log('✅ Таблица checkpoints создана');
+    console.log('✅ Таблица checkpoints создана');
 
-        // Создание таблицы смен
-        await client.query(`
+    // Создание таблицы смен
+    await client.query(`
       CREATE TABLE IF NOT EXISTS shifts (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -53,10 +53,10 @@ async function initDatabase() {
         UNIQUE(user_id, shift_date, shift_start)
       );
     `);
-        console.log('✅ Таблица shifts создана');
+    console.log('✅ Таблица shifts создана');
 
-        // Создание таблицы сканирований
-        await client.query(`
+    // Создание таблицы сканирований
+    await client.query(`
       CREATE TABLE IF NOT EXISTS scans (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -70,10 +70,10 @@ async function initDatabase() {
         notes TEXT
       );
     `);
-        console.log('✅ Таблица scans создана');
+    console.log('✅ Таблица scans создана');
 
-        // Создание таблицы GPS треков
-        await client.query(`
+    // Создание таблицы GPS треков
+    await client.query(`
       CREATE TABLE IF NOT EXISTS gps_tracks (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -85,10 +85,10 @@ async function initDatabase() {
         recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-        console.log('✅ Таблица gps_tracks создана');
+    console.log('✅ Таблица gps_tracks создана');
 
-        // Создание таблицы активных сессий патрулирования
-        await client.query(`
+    // Создание таблицы активных сессий патрулирования
+    await client.query(`
       CREATE TABLE IF NOT EXISTS patrol_sessions (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -99,99 +99,105 @@ async function initDatabase() {
         total_distance_meters DECIMAL(10, 2) DEFAULT 0
       );
     `);
-        console.log('✅ Таблица patrol_sessions создана');
+    console.log('✅ Таблица patrol_sessions создана');
 
-        // Создание индексов для оптимизации запросов
-        await client.query('CREATE INDEX IF NOT EXISTS idx_scans_user_id ON scans(user_id);');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_scans_checkpoint_id ON scans(checkpoint_id);');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_scans_scan_time ON scans(scan_time);');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_gps_tracks_user_id ON gps_tracks(user_id);');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_gps_tracks_recorded_at ON gps_tracks(recorded_at);');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_shifts_user_id ON shifts(user_id);');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(shift_date);');
-        console.log('✅ Индексы созданы');
+    // Создание индексов для оптимизации запросов
+    await client.query('CREATE INDEX IF NOT EXISTS idx_scans_user_id ON scans(user_id);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_scans_checkpoint_id ON scans(checkpoint_id);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_scans_scan_time ON scans(scan_time);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_gps_tracks_user_id ON gps_tracks(user_id);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_gps_tracks_recorded_at ON gps_tracks(recorded_at);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_shifts_user_id ON shifts(user_id);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(shift_date);');
+    console.log('✅ Индексы созданы');
 
-        // Создание администратора по умолчанию
-        const adminPassword = await bcrypt.hash('admin123', 10);
-        await client.query(`
+    // Создание администратора по умолчанию
+    const adminPassword = await bcrypt.hash('admin123', 10);
+    await client.query(`
       INSERT INTO users (email, password_hash, full_name, role, phone)
       VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (email) DO NOTHING;
     `, ['admin@example.com', adminPassword, 'Администратор Системы', 'admin', '+7 (999) 999-99-99']);
-        console.log('✅ Администратор по умолчанию создан (admin@example.com / admin123)');
+    console.log('✅ Администратор по умолчанию создан (admin@example.com / admin123)');
 
-        // Создание тестовых данных (опционально)
-        const testPassword = await bcrypt.hash('test123', 10);
+    // Создание тестовых данных (опционально)
+    const testPassword = await bcrypt.hash('test123', 10);
 
-        // Тестовый КПП сотрудник
-        const kppResult = await client.query(`
+    // Тестовый КПП сотрудник
+    const kppResult = await client.query(`
       INSERT INTO users (email, password_hash, full_name, role, phone)
       VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (email) DO NOTHING
       RETURNING id;
     `, ['kpp@example.com', testPassword, 'Иванов Иван (КПП)', 'kpp', '+7 (111) 111-11-11']);
 
-        // Тестовый патруль
-        const patrolResult = await client.query(`
+    // Тестовый патруль
+    const patrolResult = await client.query(`
       INSERT INTO users (email, password_hash, full_name, role, phone)
       VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT (email) DO NOTHING
       RETURNING id;
     `, ['patrol@example.com', testPassword, 'Петров Петр (Патруль)', 'patrol', '+7 (222) 222-22-22']);
 
-        console.log('✅ Тестовые пользователи созданы (kpp@example.com / test123 и patrol@example.com / test123)');
+    console.log('✅ Тестовые пользователи созданы (kpp@example.com / test123 и patrol@example.com / test123)');
 
-        // Создание тестовых контрольных точек
-        const checkpoints = [
-            { name: 'КПП Главный вход', lat: 55.751244, lng: 37.618423, type: 'kpp' },
-            { name: 'КПП Восточный', lat: 55.752244, lng: 37.620423, type: 'kpp' },
-            { name: 'Точка патруля #1', lat: 55.753244, lng: 37.619423, type: 'patrol' },
-            { name: 'Точка патруля #2', lat: 55.750244, lng: 37.617423, type: 'patrol' },
-            { name: 'Точка патруля #3', lat: 55.749244, lng: 37.619923, type: 'patrol' }
-        ];
+    // Создание тестовых контрольных точек (только если таблица пуста)
+    const checkCP = await client.query('SELECT id FROM checkpoints LIMIT 1');
+    if (checkCP.rows.length === 0) {
+      const checkpoints = [
+        { name: 'КПП Главный вход', lat: 55.751244, lng: 37.618423, type: 'kpp' },
+        { name: 'КПП Восточный', lat: 55.752244, lng: 37.620423, type: 'kpp' },
+        { name: 'Точка патруля #1', lat: 55.753244, lng: 37.619423, type: 'patrol' },
+        { name: 'Точка патруля #2', lat: 55.750244, lng: 37.617423, type: 'patrol' },
+        { name: 'Точка патруля #3', lat: 55.749244, lng: 37.619923, type: 'patrol' }
+      ];
 
-        for (const cp of checkpoints) {
-            const qrData = `CP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            await client.query(`
-        INSERT INTO checkpoints (name, description, latitude, longitude, radius_meters, qr_code_data, checkpoint_type)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (qr_code_data) DO NOTHING;
-      `, [cp.name, `Контрольная точка: ${cp.name}`, cp.lat, cp.lng, 50, qrData, cp.type]);
-        }
-        console.log('✅ Тестовые контрольные точки созданы');
-
-        // Создание тестовой смены на сегодня
-        const today = new Date().toISOString().split('T')[0];
-        if (kppResult.rows.length > 0) {
-            await client.query(`
-        INSERT INTO shifts (user_id, shift_date, shift_start, shift_end)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT DO NOTHING;
-      `, [kppResult.rows[0].id, today, '08:00:00', '20:00:00']);
-        }
-
-        if (patrolResult.rows.length > 0) {
-            await client.query(`
-        INSERT INTO shifts (user_id, shift_date, shift_start, shift_end)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT DO NOTHING;
-      `, [patrolResult.rows[0].id, today, '10:00:00', '22:00:00']);
-        }
-        console.log('✅ Тестовые смены созданы');
-
-        console.log('\n🎉 Инициализация базы данных завершена успешно!');
-        console.log('\n📝 Учетные данные для входа:');
-        console.log('   Админ: admin@example.com / admin123');
-        console.log('   КПП: kpp@example.com / test123');
-        console.log('   Патруль: patrol@example.com / test123\n');
-
-    } catch (error) {
-        console.error('❌ Ошибка при инициализации базы данных:', error);
-        throw error;
-    } finally {
-        client.release();
-        await pool.end();
+      for (const cp of checkpoints) {
+        const qrData = `CP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        await client.query(`
+            INSERT INTO checkpoints (name, description, latitude, longitude, radius_meters, qr_code_data, checkpoint_type)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (qr_code_data) DO NOTHING;
+          `, [cp.name, `Контрольная точка: ${cp.name}`, cp.lat, cp.lng, 50, qrData, cp.type]);
+      }
+      console.log('✅ Тестовые контрольные точки созданы');
     }
+
+    // Создание тестовых смен (только если таблица пуста)
+    const checkShifts = await client.query('SELECT id FROM shifts LIMIT 1');
+    if (checkShifts.rows.length === 0) {
+      const today = new Date().toISOString().split('T')[0];
+      if (kppResult && kppResult.rows.length > 0) {
+        await client.query(`
+            INSERT INTO shifts (user_id, shift_date, shift_start, shift_end)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT DO NOTHING;
+          `, [kppResult.rows[0].id, today, '08:00:00', '20:00:00']);
+      }
+
+      if (patrolResult && patrolResult.rows.length > 0) {
+        await client.query(`
+            INSERT INTO shifts (user_id, shift_date, shift_start, shift_end)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT DO NOTHING;
+          `, [patrolResult.rows[0].id, today, '10:00:00', '22:00:00']);
+      }
+      console.log('✅ Тестовые смены созданы');
+    }
+
+    console.log('\n🎉 Инициализация базы данных завершена успешно!');
+    console.log('\n📝 Учетные данные для входа:');
+    console.log('   Админ: admin@example.com / admin123');
+    console.log('   КПП: kpp@example.com / test123');
+    console.log('   Патруль: patrol@example.com / test123\n');
+
+  } catch (error) {
+    console.error('❌ Ошибка при инициализации базы данных:', error);
+    throw error;
+  } finally {
+    client.release();
+    await pool.end();
+  }
 }
 
 initDatabase().catch(console.error);
