@@ -256,39 +256,66 @@ function switchChannel(channelId) {
 }
 
 async function startTransmission() {
-    if (!socket || !socket.connected) return;
+    if (!socket || !socket.connected) {
+        showNotification('Нет соединения с сервером рации', 'error');
+        return;
+    }
 
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+
+        // Для iPhone/Safari и Android используем более универсальные форматы
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+            ? 'audio/webm;codecs=opus'
+            : 'audio/mp4';
+
+        const startRecording = () => {
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                mediaRecorder = new MediaRecorder(stream, { mimeType });
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            socket.emit('audio-chunk', {
+                                channelId: currentChannel,
+                                chunk: reader.result,
+                                senderName: currentUser.full_name
+                            });
+                        };
+                        reader.readAsDataURL(event.data);
+                    }
+                };
+
+                mediaRecorder.start();
+            }
+        };
 
         document.getElementById('ptt-button').classList.add('recording');
         socket.emit('ptt-start', { channelId: currentChannel, senderName: currentUser.full_name });
 
-        mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-                // Convert blob to base64 or arraybuffer
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    socket.emit('audio-chunk', {
-                        channelId: currentChannel,
-                        chunk: reader.result,
-                        senderName: currentUser.full_name
-                    });
-                };
-                reader.readAsDataURL(event.data);
+        // Запускаем цикл записи коротких самостоятельных файлов
+        startRecording();
+        window.pttInterval = setInterval(() => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                // Начинаем заново после остановки
+                setTimeout(startRecording, 10);
             }
-        };
+        }, 1500);
 
-        // Send chunks every 200ms
-        mediaRecorder.start(200);
     } catch (err) {
         console.error('Failed to start recording:', err);
-        showNotification('Ошибка микрофона', 'error');
+        showNotification('Ошибка микрофона: ' + err.message, 'error');
     }
 }
 
 function stopTransmission() {
+    if (window.pttInterval) {
+        clearInterval(window.pttInterval);
+        window.pttInterval = null;
+    }
+
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
         mediaRecorder.stream.getTracks().forEach(track => track.stop());
@@ -302,7 +329,11 @@ function stopTransmission() {
 
 function playAudioBuffer(base64Data) {
     const audio = new Audio(base64Data);
-    audio.play().catch(e => console.error('Playback error:', e));
+    // На мобильных устройствах автовоспроизведение часто заблокировано, 
+    // пока пользователь сам не нажмет что-то на странице.
+    audio.play().catch(e => {
+        console.warn('Playback blocked or failed:', e);
+    });
 }
 
 function getRoleLabel(role) {
@@ -472,6 +503,9 @@ async function sendGPSUpdate(position) {
     // Update UI
     document.getElementById('gps-accuracy').textContent = `${Math.round(accuracy)} м`;
     document.getElementById('last-update').textContent = new Date().toLocaleTimeString('ru-RU');
+
+    // КРИТИЧНО: Не отправляем на сервер, если нет активной сессии патруля
+    if (!patrolSession) return;
 
     try {
         await apiRequest('/gps/track', {

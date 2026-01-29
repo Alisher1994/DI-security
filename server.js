@@ -49,6 +49,7 @@ io.on('connection', (socket) => {
     // Трансляция аудио чанка всем в комнате кроме отправителя
     socket.on('audio-chunk', (data) => {
         // data.channelId, data.chunk, data.senderName
+        console.log(`🎤 Аудио чанк от ${data.senderName} (${data.chunk.length} байт) в канал ${data.channelId}`);
         socket.to(data.channelId).emit('audio-broadcast', {
             chunk: data.chunk,
             senderName: data.senderName,
