@@ -11,6 +11,27 @@ let gpsWatchId = null;
 let sessionInterval = null;
 let scanCount = 0;
 
+// Глобальная переменная для разблокировки звука
+let audioUnlocked = false;
+
+function unlockAudio() {
+    if (audioUnlocked) return;
+
+    // Создаем короткий "пустой" звук для разблокировки
+    const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==');
+    silentAudio.play().then(() => {
+        audioUnlocked = true;
+        console.log('🔊 Звук разблокирован браузером');
+        // Убираем слушатели
+        document.removeEventListener('click', unlockAudio);
+        document.removeEventListener('touchstart', unlockAudio);
+    }).catch(e => console.warn('Не удалось разблокировать звук:', e));
+}
+
+// Добавляем слушатели на первое взаимодействие
+document.addEventListener('click', unlockAudio);
+document.addEventListener('touchstart', unlockAudio);
+
 // Radio (Walkie-Talkie) State
 let socket = null;
 let mediaRecorder = null;
@@ -328,12 +349,23 @@ function stopTransmission() {
 }
 
 function playAudioBuffer(base64Data) {
-    const audio = new Audio(base64Data);
-    // На мобильных устройствах автовоспроизведение часто заблокировано, 
-    // пока пользователь сам не нажмет что-то на странице.
-    audio.play().catch(e => {
-        console.warn('Playback blocked or failed:', e);
-    });
+    if (!audioUnlocked) {
+        // Если звук еще не разблокирован, просто пишем в консоль один раз
+        if (!window.audioWarned) {
+            console.warn('Playback blocked: Waiting for user interaction');
+            window.audioWarned = true;
+        }
+        return;
+    }
+
+    try {
+        const audio = new Audio(base64Data);
+        audio.play().catch(e => {
+            // Игнорируем ошибки автоплея, если они все еще есть
+        });
+    } catch (e) {
+        console.error('Audio play error:', e);
+    }
 }
 
 function getRoleLabel(role) {
@@ -496,8 +528,9 @@ async function sendGPSUpdate(position) {
 
     // Update map
     if (map && userMarker) {
-        userMarker.geometry.setCoordinates([longitude, latitude]);
-        map.setCenter([longitude, latitude]);
+        // Яндекс.Карты используют [Широта, Долгота]
+        userMarker.geometry.setCoordinates([latitude, longitude]);
+        map.setCenter([latitude, longitude]);
     }
 
     // Update UI
@@ -543,7 +576,7 @@ function initializeMap() {
         // Try to get user's current location
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition((position) => {
-                const coords = [position.coords.longitude, position.coords.latitude];
+                const coords = [position.coords.latitude, position.coords.longitude];
                 userMarker.geometry.setCoordinates(coords);
                 map.setCenter(coords);
             });
