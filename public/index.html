@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Система Охраны - Сотрудник</title>
+    <link rel="stylesheet" href="/css/employee.css">
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=&lang=ru_RU" type="text/javascript"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+
+<body>
+    <!-- Экран входа -->
+    <div id="login-screen" class="screen active">
+        <div class="login-container">
+            <div class="logo">
+                <div class="shield-icon">🛡️</div>
+                <h1>Система Охраны</h1>
+            </div>
+            <form id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="password">Пароль</label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-primary">Войти</button>
+                <div id="login-error" class="error-message"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Главный экран -->
+    <div id="main-screen" class="screen">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <span id="user-initials">👤</span>
+                    </div>
+                    <div class="user-details">
+                        <div id="user-name" class="user-name">Загрузка...</div>
+                        <div id="user-role" class="user-role"></div>
+                    </div>
+                </div>
+                <button id="logout-btn" class="btn-icon" title="Выйти">
+                    <span>🚪</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Информация о смене -->
+        <section class="shift-info">
+            <div id="no-shift" class="alert alert-warning">
+                <span class="alert-icon">⚠️</span>
+                <div>
+                    <div class="alert-title">Нет активной смены</div>
+                    <div class="alert-text">У вас сейчас нет запланированной смены</div>
+                </div>
+            </div>
+            <div id="active-shift" class="shift-card" style="display: none;">
+                <div class="shift-header">
+                    <span class="shift-badge">Активная смена</span>
+                    <span id="shift-time-remaining" class="shift-time"></span>
+                </div>
+                <div class="shift-details">
+                    <div class="shift-detail-item">
+                        <span class="label">Начало:</span>
+                        <span id="shift-start" class="value">--:--</span>
+                    </div>
+                    <div class="shift-detail-item">
+                        <span class="label">Окончание:</span>
+                        <span id="shift-end" class="value">--:--</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Управление патрулем (только для patrol) -->
+        <section id="patrol-controls" class="patrol-controls" style="display: none;">
+            <div class="control-card">
+                <h2 class="section-title">Патрулирование</h2>
+                <div id="session-inactive" class="session-state">
+                    <div class="session-icon">🚶</div>
+                    <p>Нажмите кнопку для начала патрулирования</p>
+                    <button id="start-patrol-btn" class="btn btn-success btn-large">
+                        <span class="btn-icon">▶️</span>
+                        <span>Начать патруль</span>
+                    </button>
+                </div>
+                <div id="session-active" class="session-state" style="display: none;">
+                    <div class="session-icon active">🏃</div>
+                    <p>Патрулирование активно</p>
+                    <div class="session-stats">
+                        <div class="stat-item">
+                            <div class="stat-label">Длительность</div>
+                            <div id="session-duration" class="stat-value">00:00:00</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Сканирований</div>
+                            <div id="session-scans" class="stat-value">0</div>
+                        </div>
+                    </div>
+                    <button id="stop-patrol-btn" class="btn btn-danger btn-large">
+                        <span class="btn-icon">⏹️</span>
+                        <span>Завершить патруль</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- QR Scanner -->
+        <section class="scanner-section">
+            <div class="control-card">
+                <h2 class="section-title">Сканирование QR-кода</h2>
+                <button id="scan-qr-btn" class="btn btn-primary btn-large" disabled>
+                    <span class="btn-icon">📷</span>
+                    <span>Отсканировать QR-код</span>
+                </button>
+                <div id="scan-result" class="scan-result"></div>
+            </div>
+        </section>
+
+        <!-- Карта (для patrol) -->
+        <section id="map-section" class="map-section" style="display: none;">
+            <div class="control-card">
+                <h2 class="section-title">Моя позиция</h2>
+                <div id="map" class="map-container"></div>
+                <div class="location-info">
+                    <div class="location-item">
+                        <span class="label">GPS точность:</span>
+                        <span id="gps-accuracy" class="value">--</span>
+                    </div>
+                    <div class="location-item">
+                        <span class="label">Последнее обновление:</span>
+                        <span id="last-update" class="value">--</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- История сканирований -->
+        <section class="history-section">
+            <div class="control-card">
+                <h2 class="section-title">История сканирований</h2>
+                <div id="scan-history" class="scan-history"></div>
+            </div>
+        </section>
+    </div>
+
+    <!-- QR Scanner Modal -->
+    <div id="qr-scanner-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Сканирование QR-кода</h2>
+                <button class="modal-close" id="close-scanner">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="qr-reader"></div>
+                <div class="manual-input">
+                    <p>Или введите код вручную:</p>
+                    <input type="text" id="manual-qr-input" placeholder="Введите QR-код">
+                    <button id="manual-qr-submit" class="btn btn-secondary">Отправить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/employee-app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель - Система Охраны</title>
+    <link rel="stylesheet" href="/css/admin.css">
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=&lang=ru_RU" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+    <div id="app" class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">🛡️</span>
+                    <span class="logo-text">Система Охраны</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active" data-page="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Дашборд</span>
+                </a>
+                <a href="#realtime" class="nav-item" data-page="realtime">
+                    <span class="nav-icon">🗺️</span>
+                    <span class="nav-text">Карта Realtime</span>
+                </a>
+                <a href="#scans" class="nav-item" data-page="scans">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">История сканирований</span>
+                </a>
+                <a href="#checkpoints" class="nav-item" data-page="checkpoints">
+                    <span class="nav-icon">📍</span>
+                    <span class="nav-text">Контрольные точки</span>
+                </a>
+                <a href="#employees" class="nav-item" data-page="employees">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Сотрудники</span>
+                </a>
+                <a href="#shifts" class="nav-item" data-page="shifts">
+                    <span class="nav-icon">🗓️</span>
+                    <span class="nav-text">Смены</span>
+                </a>
+                <a href="#tracks" class="nav-item" data-page="tracks">
+                    <span class="nav-icon">🛣️</span>
+                    <span class="nav-text">История треков</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar">👤</div>
+                    <div class="user-info">
+                        <div id="admin-name" class="user-name">Администратор</div>
+                        <div class="user-role">Админ</div>
+                    </div>
+                </div>
+                <button id="logout-btn" class="btn-logout" title="Выйти">🚪</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="page-header">
+                <h1 id="page-title" class="page-title">Дашборд</h1>
+                <div class="header-actions">
+                    <div class="datetime" id="current-datetime"></div>
+                </div>
+            </header>
+
+            <!-- Dashboard Page -->
+            <div id="dashboard-page" class="page-content active">
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">📊</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Всего сканирований</div>
+                            <div class="stat-value" id="totalScans">0</div>
+                            <div class="stat-change positive">↑ За все время</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #059669);">👥</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Активных сотрудников</div>
+                            <div class="stat-value" id="activeEmployees">0</div>
+                            <div class="stat-change">Сегодня на смене</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">📍</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Контрольных точек</div>
+                            <div class="stat-value" id="totalCheckpoints">0</div>
+                            <div class="stat-change">Активных точек</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🏃</div>
+                        <div class="stat-content">
+                            <div class="stat-label">Активных патрулей</div>
+                            <div class="stat-value" id="activePatrols">0</div>
+                            <div class="stat-change">В данный момент</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3 class="chart-title">Сканирования за последние 7 дней</h3>
+                        <canvas id="scansChart"></canvas>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3 class="chart-title">Распределение по типам точек</h3>
+                        <canvas id="checkpointTypesChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="recent-activity">
+                    <h3 class="section-title">Последние сканирования</h3>
+                    <div id="recentScans" class="activity-list"></div>
+                </div>
+            </div>
+
+            <!-- Realtime Map Page -->
+            <div id="realtime-page" class="page-content">
+                <div class="map-controls">
+                    <button id="refresh-map" class="btn btn-primary">
+                        <span>🔄</span>
+                        <span>Обновить</span>
+                    </button>
+                    <div class="map-legend">
+                        <div class="legend-item">
+                            <span class="legend-marker" style="background: #3b82f6;"></span>
+                            <span>Активные патрули</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-marker" style="background: #ef4444;"></span>
+                            <span>КПП</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-marker" style="background: #10b981;"></span>
+                            <span>Точки патруля</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="realtime-map" class="admin-map"></div>
+                <div class="active-patrols-list">
+                    <h3 class="section-title">Активные патрули</h3>
+                    <div id="activePatrolsList"></div>
+                </div>
+            </div>
+
+            <!-- Scans History Page -->
+            <div id="scans-page" class="page-content">
+                <div class="table-controls">
+                    <div class="filters">
+                        <input type="date" id="scanFilterFrom" class="input-field" placeholder="От">
+                        <input type="date" id="scanFilterTo" class="input-field" placeholder="До">
+                        <select id="scanFilterUser" class="input-field">
+                            <option value="">Все сотрудники</option>
+                        </select>
+                        <button id="applyScanFilter" class="btn btn-secondary">Применить</button>
+                        <button id="clearScanFilter" class="btn btn-secondary">Сбросить</button>
+                    </div>
+                    <button id="exportScans" class="btn btn-primary">📥 Экспорт CSV</button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Дата/Время</th>
+                                <th>Сотрудник</th>
+                                <th>Контрольная точка</th>
+                                <th>Расстояние (м)</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scansTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="scansPagination"></div>
+            </div>
+
+            <!-- Checkpoints Page -->
+            <div id="checkpoints-page" class="page-content">
+                <div class="page-actions">
+                    <button id="addCheckpoint" class="btn btn-success">+ Добавить точку</button>
+                </div>
+                <div class="cards-grid" id="checkpointsGrid"></div>
+            </div>
+
+            <!-- Employees Page -->
+            <div id="employees-page" class="page-content">
+                <div class="page-actions">
+                    <button id="addEmployee" class="btn btn-success">+ Добавить сотрудника</button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>ФИО</th>
+                                <th>Email</th>
+                                <th>Роль</th>
+                                <th>Телефон</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employeesTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Shifts Page -->
+            <div id="shifts-page" class="page-content">
+                <div class="page-actions">
+                    <button id="addShift" class="btn btn-success">+ Добавить смену</button>
+                    <button id="bulkShifts" class="btn btn-primary">📅 Массовое создание</button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Дата</th>
+                                <th>Сотрудник</th>
+                                <th>Начало</th>
+                                <th>Конец</th>
+                                <th>Статус</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shiftsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tracks History Page -->
+            <div id="tracks-page" class="page-content">
+                <div class="table-controls">
+                    <div class="filters">
+                        <select id="trackFilterUser" class="input-field">
+                            <option value="">Выберите патрульного</option>
+                        </select>
+                        <input type="date" id="trackFilterDate" class="input-field">
+                        <button id="viewTrack" class="btn btn-primary">Показать путь</button>
+                    </div>
+                </div>
+                <div id="history-map" class="admin-map"></div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Сессия</th>
+                                <th>Начало</th>
+                                <th>Конец</th>
+                                <th>Дистанция</th>
+                                <th>Сканирований</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessionsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals will be added dynamically -->
+    <div id="modalContainer"></div>
+
+    <script src="/js/admin-app.js"></script>
+</body>
+
+</html>

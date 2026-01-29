@@ -1,0 +1,1302 @@
+// API Configuration
+const API_BASE = window.location.origin + '/api';
+let authToken = localStorage.getItem('authToken');
+let currentUser = null;
+let realtimeMap = null;
+let scansChart = null;
+let checkpointTypesChart = null;
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  if (!authToken) {
+    window.location.href = '/';
+    return;
+  }
+
+  initializeApp();
+});
+
+async function initializeApp() {
+  try {
+    const data = await apiRequest('/auth/me');
+    currentUser = data.user;
+
+    if (currentUser.role !== 'admin') {
+      alert('Доступ только для администраторов');
+      window.location.href = '/';
+      return;
+    }
+
+    document.getElementById('admin-name').textContent = currentUser.full_name;
+
+    setupNavigation();
+    setupEventListeners();
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+
+    // Load initial page
+    loadDashboard();
+  } catch (error) {
+    console.error('Failed to load user:', error);
+    localStorage.removeItem('authToken');
+    window.location.href = '/';
+  }
+}
+
+// API Helper
+async function apiRequest(endpoint, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers
+  };
+
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
+
+  const response = await fetch(API_BASE + endpoint, {
+    ...options,
+    headers
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Ошибка запроса');
+  }
+
+  return data;
+}
+
+// Navigation
+function setupNavigation() {
+  const navItems = document.querySelectorAll('.nav-item');
+
+  navItems.forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+
+      const page = item.dataset.page;
+
+      // Update active nav item
+      navItems.forEach(nav => nav.classList.remove('active'));
+      item.classList.add('active');
+
+      // Update active page
+      document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
+      document.getElementById(`${page}-page`).classList.add('active');
+
+      // Update page title
+      const titles = {
+        'dashboard': 'Дашборд',
+        'realtime': 'Карта Realtime',
+        'scans': 'История сканирований',
+        'checkpoints': 'Контрольные точки',
+        'employees': 'Сотрудники',
+        'shifts': 'Смены',
+        'tracks': 'История треков'
+      };
+      document.getElementById('page-title').textContent = titles[page];
+
+      // Load page content
+      switch (page) {
+        case 'dashboard':
+          loadDashboard();
+          break;
+        case 'realtime':
+          loadRealtimeMap();
+          break;
+        case 'scans':
+          loadScans();
+          break;
+        case 'checkpoints':
+          loadCheckpoints();
+          break;
+        case 'employees':
+          loadEmployees();
+          break;
+        case 'shifts':
+          loadShifts();
+          break;
+        case 'tracks':
+          loadTracksPage();
+          break;
+      }
+    });
+  });
+}
+
+function setupEventListeners() {
+  document.getElementById('logout-btn').addEventListener('click', handleLogout);
+  document.getElementById('refresh-map').addEventListener('click', loadRealtimeMap);
+  document.getElementById('addCheckpoint').addEventListener('click', () => showCheckpointModal());
+  document.getElementById('addEmployee').addEventListener('click', () => showEmployeeModal());
+  document.getElementById('addShift').addEventListener('click', () => showShiftModal());
+  document.getElementById('applyScanFilter').addEventListener('click', loadScans);
+  document.getElementById('clearScanFilter').addEventListener('click', clearScanFilter);
+  document.getElementById('viewTrack').addEventListener('click', loadSessions);
+}
+
+function handleLogout() {
+  if (confirm('Вы уверены, что хотите выйти?')) {
+    localStorage.removeItem('authToken');
+    window.location.href = '/';
+  }
+}
+
+function updateDateTime() {
+  const now = new Date();
+  document.getElementById('current-datetime').textContent = now.toLocaleString('ru-RU', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+// Dashboard
+async function loadDashboard() {
+  try {
+    // Load stats
+    const stats = await apiRequest('/scans/stats');
+    const checkpoints = await apiRequest('/checkpoints');
+    const activePatrols = await apiRequest('/gps/active');
+
+    document.getElementById('totalScans').textContent = stats.stats.total_scans || 0;
+    document.getElementById('activeEmployees').textContent = stats.stats.active_users || 0;
+    document.getElementById('totalCheckpoints').textContent = checkpoints.checkpoints.length;
+    document.getElementById('activePatrols').textContent = activePatrols.active_patrols.length;
+
+    // Load recent scans
+    const scans = await apiRequest('/scans?limit=10');
+    renderRecentScans(scans.scans);
+
+    // Load charts
+    await loadDashboardCharts();
+  } catch (error) {
+    console.error('Failed to load dashboard:', error);
+    showNotification('Ошибка загрузки дашборда', 'error');
+  }
+}
+
+async function loadDashboardCharts() {
+  try {
+    // Scans chart - last 7 days
+    const scansData = await loadScansChartData();
+    renderScansChart(scansData);
+
+    // Checkpoints types chart
+    const checkpoints = await apiRequest('/checkpoints');
+    renderCheckpointTypesChart(checkpoints.checkpoints);
+  } catch (error) {
+    console.error('Failed to load charts:', error);
+  }
+}
+
+async function loadScansChartData() {
+  const days = 7;
+  const labels = [];
+  const data = [];
+
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+
+    labels.push(date.toLocaleDateString('ru-RU', { month: 'short', day: 'numeric' }));
+
+    try {
+      const scans = await apiRequest(`/scans?from_date=${dateStr}T00:00:00&to_date=${dateStr}T23:59:59`);
+      data.push(scans.scans.length);
+    } catch (error) {
+      data.push(0);
+    }
+  }
+
+  return { labels, data };
+}
+
+function renderScansChart(chartData) {
+  const ctx = document.getElementById('scansChart');
+
+  if (scansChart) {
+    scansChart.destroy();
+  }
+
+  scansChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: chartData.labels,
+      datasets: [{
+        label: 'Сканирования',
+        data: chartData.data,
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          labels: {
+            color: '#cbd5e1'
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: '#94a3b8'
+          },
+          grid: {
+            color: '#334155'
+          }
+        },
+        x: {
+          ticks: {
+            color: '#94a3b8'
+          },
+          grid: {
+            color: '#334155'
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderCheckpointTypesChart(checkpoints) {
+  const kppCount = checkpoints.filter(cp => cp.checkpoint_type === 'kpp').length;
+  const patrolCount = checkpoints.filter(cp => cp.checkpoint_type === 'patrol').length;
+
+  const ctx = document.getElementById('checkpointTypesChart');
+
+  if (checkpointTypesChart) {
+    checkpointTypesChart.destroy();
+  }
+
+  checkpointTypesChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['КПП', 'Патруль'],
+      datasets: [{
+        data: [kppCount, patrolCount],
+        backgroundColor: ['#ef4444', '#10b981']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          labels: {
+            color: '#cbd5e1'
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderRecentScans(scans) {
+  const container = document.getElementById('recentScans');
+
+  if (scans.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+        <div>Нет недавних сканирований</div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = scans.map(scan => `
+    <div class="activity-item">
+      <div class="activity-icon">${scan.is_valid ? '✅' : '❌'}</div>
+      <div class="activity-content">
+        <div class="activity-title">${scan.checkpoint_name}</div>
+        <div class="activity-meta">
+          ${scan.user_name} • ${formatDateTime(scan.scan_time)} • ${Math.round(scan.distance_meters)}м
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Realtime Map
+async function loadRealtimeMap() {
+  try {
+    const [checkpoints, activePatrols] = await Promise.all([
+      apiRequest('/checkpoints'),
+      apiRequest('/gps/active')
+    ]);
+
+    if (!realtimeMap) {
+      initializeRealtimeMap();
+    }
+
+    renderRealtimeMap(checkpoints.checkpoints, activePatrols.active_patrols);
+    renderActivePatrolsList(activePatrols.active_patrols);
+  } catch (error) {
+    console.error('Failed to load realtime map:', error);
+    showNotification('Ошибка загрузки карты', 'error');
+  }
+}
+
+function initializeRealtimeMap() {
+  ymaps.ready(() => {
+    realtimeMap = new ymaps.Map('realtime-map', {
+      center: [55.751244, 37.618423],
+      zoom: 14,
+      controls: ['zoomControl', 'fullscreenControl']
+    });
+  });
+}
+
+function renderRealtimeMap(checkpoints, patrols) {
+  if (!realtimeMap) return;
+
+  realtimeMap.geoObjects.removeAll();
+
+  // Add checkpoints
+  checkpoints.forEach(cp => {
+    const marker = new ymaps.Placemark([cp.latitude, cp.longitude], {
+      balloonContent: `
+        <strong>${cp.name}</strong><br>
+        <small>${cp.description || ''}</small><br>
+        <small>Тип: ${cp.checkpoint_type === 'kpp' ? 'КПП' : 'Патруль'}</small>
+      `
+    }, {
+      preset: cp.checkpoint_type === 'kpp' ? 'islands#redDotIcon' : 'islands#greenDotIcon'
+    });
+
+    realtimeMap.geoObjects.add(marker);
+
+    // Add radius
+    const circle = new ymaps.Circle([[cp.latitude, cp.longitude], cp.radius_meters], {}, {
+      fillColor: cp.checkpoint_type === 'kpp' ? '#ef444420' : '#10b98120',
+      strokeColor: cp.checkpoint_type === 'kpp' ? '#ef4444' : '#10b981',
+      strokeOpacity: 0.5,
+      strokeWidth: 2
+    });
+
+    realtimeMap.geoObjects.add(circle);
+  });
+
+  // Add active patrols
+  patrols.forEach(patrol => {
+    if (patrol.latitude && patrol.longitude) {
+      const marker = new ymaps.Placemark([patrol.latitude, patrol.longitude], {
+        iconCaption: patrol.full_name,
+        balloonContent: `
+          <strong>${patrol.full_name}</strong><br>
+          <small>Последнее обновление: ${formatDateTime(patrol.recorded_at)}</small><br>
+          <small>Точность: ${Math.round(patrol.accuracy)}м</small>
+        `
+      }, {
+        preset: 'islands#blueDotIcon'
+      });
+
+      realtimeMap.geoObjects.add(marker);
+    }
+  });
+}
+
+function renderActivePatrolsList(patrols) {
+  const container = document.getElementById('activePatrolsList');
+
+  if (patrols.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🚶</div>
+        <div>Нет активных патрулей</div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = patrols.map(patrol => `
+    <div class="activity-item">
+      <div class="activity-icon">👤</div>
+      <div class="activity-content">
+        <div class="activity-title">${patrol.full_name}</div>
+        <div class="activity-meta">
+          ${patrol.recorded_at ? `Последнее обновление: ${formatDateTime(patrol.recorded_at)}` : 'Нет GPS данных'}
+        </div>
+      </div>
+      <span class="badge badge-success">Активен</span>
+    </div>
+  `).join('');
+}
+
+// Scans History
+async function loadScans() {
+  try {
+    let endpoint = '/scans';
+    const params = new URLSearchParams();
+
+    const fromDate = document.getElementById('scanFilterFrom').value;
+    const toDate = document.getElementById('scanFilterTo').value;
+    const userId = document.getElementById('scanFilterUser').value;
+
+    if (fromDate) params.append('from_date', fromDate + 'T00:00:00');
+    if (toDate) params.append('to_date', toDate + 'T23:59:59');
+    if (userId) params.append('user_id', userId);
+    params.append('limit', '100');
+
+    const queryString = params.toString();
+    if (queryString) {
+      endpoint += '?' + queryString;
+    }
+
+    const data = await apiRequest(endpoint);
+    renderScansTable(data.scans);
+
+    // Load employees for filter if not loaded
+    if (document.getElementById('scanFilterUser').options.length === 1) {
+      const employees = await apiRequest('/employees');
+      populateEmployeeFilter(employees.employees);
+    }
+  } catch (error) {
+    console.error('Failed to load scans:', error);
+    showNotification('Ошибка загрузки сканирований', 'error');
+  }
+}
+
+function renderScansTable(scans) {
+  const tbody = document.getElementById('scansTableBody');
+
+  if (scans.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+          <div>Нет сканирований</div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = scans.map(scan => `
+    <tr>
+      <td>${scan.id}</td>
+      <td>${formatDateTime(scan.scan_time)}</td>
+      <td>${scan.user_name}</td>
+      <td>${scan.checkpoint_name}</td>
+      <td>${Math.round(scan.distance_meters)}</td>
+      <td>
+        <span class="badge ${scan.is_valid ? 'badge-success' : 'badge-danger'}">
+          ${scan.is_valid ? 'Валидно' : 'Невалидно'}
+        </span>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function populateEmployeeFilter(employees) {
+  const select = document.getElementById('scanFilterUser');
+  employees.forEach(emp => {
+    const option = document.createElement('option');
+    option.value = emp.id;
+    option.textContent = emp.full_name;
+    select.appendChild(option);
+  });
+}
+
+function clearScanFilter() {
+  document.getElementById('scanFilterFrom').value = '';
+  document.getElementById('scanFilterTo').value = '';
+  document.getElementById('scanFilterUser').value = '';
+  loadScans();
+}
+
+// Checkpoints Management
+async function loadCheckpoints() {
+  try {
+    const data = await apiRequest('/checkpoints');
+    renderCheckpointsGrid(data.checkpoints);
+  } catch (error) {
+    console.error('Failed to load checkpoints:', error);
+    showNotification('Ошибка загрузки контрольных точек', 'error');
+  }
+}
+
+function renderCheckpointsGrid(checkpoints) {
+  const grid = document.getElementById('checkpointsGrid');
+
+  if (checkpoints.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-muted);">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">📍</div>
+        <div>Нет контрольных точек</div>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = checkpoints.map(cp => `
+    <div class="checkpoint-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${cp.name}</div>
+          <div class="card-subtitle">${cp.checkpoint_type === 'kpp' ? 'КПП' : 'Точка патруля'}</div>
+        </div>
+        <span class="badge ${cp.is_active ? 'badge-success' : 'badge-danger'}">
+          ${cp.is_active ? 'Активна' : 'Неактивна'}
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="card-info">
+          <div class="card-info-item">
+            <span class="card-info-label">Координаты:</span>
+            <span>${parseFloat(cp.latitude).toFixed(6)}, ${parseFloat(cp.longitude).toFixed(6)}</span>
+          </div>
+          <div class="card-info-item">
+            <span class="card-info-label">Радиус:</span>
+            <span>${cp.radius_meters} м</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-secondary btn-icon" onclick="viewQRCode(${cp.id})" title="Показать QR-код">📷</button>
+        <button class="btn btn-secondary btn-icon" onclick="editCheckpoint(${cp.id})" title="Редактировать">✏️</button>
+        <button class="btn btn-danger btn-icon" onclick="deleteCheckpoint(${cp.id})" title="Удалить">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function viewQRCode(id) {
+  try {
+    const data = await apiRequest(`/checkpoints/${id}/qrcode`);
+
+    showModal({
+      title: `QR-код: ${data.name}`,
+      content: `
+        <div style="text-align: center; padding: 2rem;">
+          <img src="${data.qr_code}" alt="QR Code" style="max-width: 100%; height: auto; border-radius: 1rem;">
+          <div style="margin-top: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+            ${data.qr_data}
+          </div>
+          <button class="btn btn-primary" onclick="downloadQRCode('${data.qr_code}', '${data.name}')" style="margin-top: 1rem;">
+            Скачать QR-код
+          </button>
+        </div>
+      `
+    });
+  } catch (error) {
+    showNotification('Ошибка загрузки QR-кода', 'error');
+  }
+}
+
+function downloadQRCode(dataUrl, name) {
+  const link = document.createElement('a');
+  link.download = `QR_${name.replace(/\s+/g, '_')}.png`;
+  link.href = dataUrl;
+  link.click();
+}
+
+function showCheckpointModal(checkpoint = null) {
+  const isEdit = checkpoint !== null;
+
+  showModal({
+    title: isEdit ? 'Редактировать точку' : 'Новая контрольная точка',
+    content: `
+      <form id="checkpointForm" class="modal-form">
+        <div class="form-group">
+          <label>Название</label>
+          <input type="text" name="name" class="input-field" value="${isEdit ? checkpoint.name : ''}" required>
+        </div>
+        <div class="form-group">
+          <label>Описание</label>
+          <textarea name="description" class="input-field" rows="3">${isEdit ? (checkpoint.description || '') : ''}</textarea>
+        </div>
+        <div class="form-group">
+          <label>Тип</label>
+          <select name="checkpoint_type" class="input-field" required>
+            <option value="kpp" ${isEdit && checkpoint.checkpoint_type === 'kpp' ? 'selected' : ''}>КПП</option>
+            <option value="patrol" ${isEdit && checkpoint.checkpoint_type === 'patrol' ? 'selected' : ''}>Патруль</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Широта</label>
+            <input type="number" step="0.000001" name="latitude" class="input-field" value="${isEdit ? checkpoint.latitude : '55.751244'}" required>
+          </div>
+          <div class="form-group">
+            <label>Долгота</label>
+            <input type="number" step="0.000001" name="longitude" class="input-field" value="${isEdit ? checkpoint.longitude : '37.618423'}" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Радиус (метры)</label>
+          <input type="number" name="radius_meters" class="input-field" value="${isEdit ? checkpoint.radius_meters : 50}" min="10" max="500" required>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+          <button type="submit" class="btn btn-success">${isEdit ? 'Сохранить' : 'Создать'}</button>
+        </div>
+      </form>
+    `,
+    onLoad: () => {
+      document.getElementById('checkpointForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+
+        try {
+          if (isEdit) {
+            await apiRequest(`/checkpoints/${checkpoint.id}`, {
+              method: 'PUT',
+              body: JSON.stringify(data)
+            });
+            showNotification('Точка обновлена', 'success');
+          } else {
+            await apiRequest('/checkpoints', {
+              method: 'POST',
+              body: JSON.stringify(data)
+            });
+            showNotification('Точка создана', 'success');
+          }
+
+          closeModal();
+          loadCheckpoints();
+        } catch (error) {
+          showNotification(error.message, 'error');
+        }
+      });
+    }
+  });
+}
+
+async function editCheckpoint(id) {
+  try {
+    const data = await apiRequest(`/checkpoints/${id}`);
+    showCheckpointModal(data.checkpoint);
+  } catch (error) {
+    showNotification('Ошибка загрузки точки', 'error');
+  }
+}
+
+async function deleteCheckpoint(id) {
+  if (!confirm('Удалить контрольную точку?')) return;
+
+  try {
+    await apiRequest(`/checkpoints/${id}`, { method: 'DELETE' });
+    showNotification('Точка удалена', 'success');
+    loadCheckpoints();
+  } catch (error) {
+    showNotification(error.message, 'error');
+  }
+}
+
+// Employees Management
+async function loadEmployees() {
+  try {
+    const data = await apiRequest('/employees');
+    renderEmployeesTable(data.employees);
+  } catch (error) {
+    console.error('Failed to load employees:', error);
+    showNotification('Ошибка загрузки сотрудников', 'error');
+  }
+}
+
+function renderEmployeesTable(employees) {
+  const tbody = document.getElementById('employeesTableBody');
+
+  if (employees.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
+          <div>Нет сотрудников</div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = employees.map(emp => `
+    <tr>
+      <td>${emp.id}</td>
+      <td>${emp.full_name}</td>
+      <td>${emp.email}</td>
+      <td>
+        <span class="badge ${emp.role === 'admin' ? 'badge-danger' : 'badge-success'}">
+          ${getRoleLabel(emp.role)}
+        </span>
+      </td>
+      <td>${emp.phone || '-'}</td>
+      <td>
+        <button class="btn btn-secondary btn-icon" onclick="editEmployee(${emp.id})" title="Редактировать">✏️</button>
+        ${emp.id !== currentUser.id ? `<button class="btn btn-danger btn-icon" onclick="deleteEmployee(${emp.id})" title="Удалить">🗑️</button>` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function getRoleLabel(role) {
+  const labels = { 'admin': 'Администратор', 'kpp': 'КПП', 'patrol': 'Патруль' };
+  return labels[role] || role;
+}
+
+function showEmployeeModal(employee = null) {
+  const isEdit = employee !== null;
+
+  showModal({
+    title: isEdit ? 'Редактировать сотрудника' : 'Новый сотрудник',
+    content: `
+      <form id="employeeForm" class="modal-form">
+        <div class="form-group">
+          <label>ФИО</label>
+          <input type="text" name="full_name" class="input-field" value="${isEdit ? employee.full_name : ''}" required>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="email" class="input-field" value="${isEdit ? employee.email : ''}" required>
+        </div>
+        <div class="form-group">
+          <label>Телефон</label>
+          <input type="tel" name="phone" class="input-field" value="${isEdit ? (employee.phone || '') : ''}">
+        </div>
+        <div class="form-group">
+          <label>Роль</label>
+          <select name="role" class="input-field" required>
+            <option value="kpp" ${isEdit && employee.role === 'kpp' ? 'selected' : ''}>КПП</option>
+            <option value="patrol" ${isEdit && employee.role === 'patrol' ? 'selected' : ''}>Патруль</option>
+            <option value="admin" ${isEdit && employee.role === 'admin' ? 'selected' : ''}>Администратор</option>
+          </select>
+        </div>
+        ${!isEdit ? `
+          <div class="form-group">
+            <label>Пароль</label>
+            <input type="password" name="password" class="input-field" minlength="6" required>
+          </div>
+        ` : '<input type="hidden" name="password" value="">'}
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+          <button type="submit" class="btn btn-success">${isEdit ? 'Сохранить' : 'Создать'}</button>
+        </div>
+      </form>
+    `,
+    onLoad: () => {
+      document.getElementById('employeeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+
+        // Remove password if empty (for edit)
+        if (!data.password) delete data.password;
+
+        try {
+          if (isEdit) {
+            await apiRequest(`/employees/${employee.id}`, {
+              method: 'PUT',
+              body: JSON.stringify(data)
+            });
+            showNotification('Сотрудник обновлен', 'success');
+          } else {
+            await apiRequest('/employees', {
+              method: 'POST',
+              body: JSON.stringify(data)
+            });
+            showNotification('Сотрудник создан', 'success');
+          }
+
+          closeModal();
+          loadEmployees();
+        } catch (error) {
+          showNotification(error.message, 'error');
+        }
+      });
+    }
+  });
+}
+
+async function editEmployee(id) {
+  try {
+    const data = await apiRequest(`/employees/${id}`);
+    showEmployeeModal(data.employee);
+  } catch (error) {
+    showNotification('Ошибка загрузки сотрудника', 'error');
+  }
+}
+
+async function deleteEmployee(id) {
+  if (!confirm('Удалить сотрудника?')) return;
+
+  try {
+    await apiRequest(`/employees/${id}`, { method: 'DELETE' });
+    showNotification('Сотрудник удален', 'success');
+    loadEmployees();
+  } catch (error) {
+    showNotification(error.message, 'error');
+  }
+}
+
+// Shifts Management
+async function loadShifts() {
+  try {
+    const data = await apiRequest('/shifts');
+    renderShiftsTable(data.shifts);
+  } catch (error) {
+    console.error('Failed to load shifts:', error);
+    showNotification('Ошибка загрузки смен', 'error');
+  }
+}
+
+function renderShiftsTable(shifts) {
+  const tbody = document.getElementById('shiftsTableBody');
+
+  if (shifts.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">🗓️</div>
+          <div>Нет смен</div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = shifts.map(shift => `
+    <tr>
+      <td>${shift.id}</td>
+      <td>${formatDate(shift.shift_date)}</td>
+      <td>${shift.full_name}</td>
+      <td>${shift.shift_start.slice(0, 5)}</td>
+      <td>${shift.shift_end.slice(0, 5)}</td>
+      <td>
+        <span class="badge ${shift.is_active ? 'badge-success' : 'badge-danger'}">
+          ${shift.is_active ? 'Активна' : 'Неактивна'}
+        </span>
+      </td>
+      <td>
+        <button class="btn btn-secondary btn-icon" onclick="editShift(${shift.id})" title="Редактировать">✏️</button>
+        <button class="btn btn-danger btn-icon" onclick="deleteShift(${shift.id})" title="Удалить">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function showShiftModal(shift = null) {
+  const isEdit = shift !== null;
+
+  // Load employees first
+  apiRequest('/employees').then(data => {
+    const employeesOptions = data.employees
+      .filter(e => e.role !== 'admin')
+      .map(e => `<option value="${e.id}" ${isEdit && shift.user_id === e.id ? 'selected' : ''}>${e.full_name}</option>`)
+      .join('');
+
+    showModal({
+      title: isEdit ? 'Редактировать смену' : 'Новая смена',
+      content: `
+        <form id="shiftForm" class="modal-form">
+          <div class="form-group">
+            <label>Сотрудник</label>
+            <select name="user_id" class="input-field" required>
+              <option value="">Выберите сотрудника</option>
+              ${employeesOptions}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Дата</label>
+            <input type="date" name="shift_date" class="input-field" value="${isEdit ? shift.shift_date : new Date().toISOString().split('T')[0]}" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Начало</label>
+              <input type="time" name="shift_start" class="input-field" value="${isEdit ? shift.shift_start.slice(0, 5) : '08:00'}" required>
+            </div>
+            <div class="form-group">
+              <label>Конец</label>
+              <input type="time" name="shift_end" class="input-field" value="${isEdit ? shift.shift_end.slice(0, 5) : '20:00'}" required>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+            <button type="submit" class="btn btn-success">${isEdit ? 'Сохранить' : 'Создать'}</button>
+          </div>
+        </form>
+      `,
+      onLoad: () => {
+        document.getElementById('shiftForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+
+          const formData = new FormData(e.target);
+          const data = Object.fromEntries(formData);
+
+          try {
+            if (isEdit) {
+              await apiRequest(`/shifts/${shift.id}`, {
+                method: 'PUT',
+                body: JSON.stringify(data)
+              });
+              showNotification('Смена обновлена', 'success');
+            } else {
+              await apiRequest('/shifts', {
+                method: 'POST',
+                body: JSON.stringify(data)
+              });
+              showNotification('Смена создана', 'success');
+            }
+
+            closeModal();
+            loadShifts();
+          } catch (error) {
+            showNotification(error.message, 'error');
+          }
+        });
+      }
+    });
+  });
+}
+
+async function editShift(id) {
+  try {
+    const data = await apiRequest(`/shifts?user_id`);
+    const shift = data.shifts.find(s => s.id === id);
+    if (shift) showShiftModal(shift);
+  } catch (error) {
+    showNotification('Ошибка загрузки смены', 'error');
+  }
+}
+
+async function deleteShift(id) {
+  if (!confirm('Удалить смену?')) return;
+
+  try {
+    await apiRequest(`/shifts/${id}`, { method: 'DELETE' });
+    showNotification('Смена удалена', 'success');
+    loadShifts();
+  } catch (error) {
+    showNotification(error.message, 'error');
+  }
+}
+
+// Modal System
+function showModal({ title, content, onLoad }) {
+  const container = document.getElementById('modalContainer');
+
+  container.innerHTML = `
+    <div class="modal active">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>${title}</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          ${content}
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (onLoad) {
+    setTimeout(onLoad, 100);
+  }
+}
+
+function closeModal() {
+  document.getElementById('modalContainer').innerHTML = '';
+}
+
+// Notifications
+function showNotification(message, type = 'info') {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    background: ${type === 'success' ? 'var(--success)' : 'var(--danger)'};
+    color: white;
+    border-radius: 0.5rem;
+    box-shadow: var(--shadow-lg);
+    z-index: 10000;
+    animation: slideIn 0.3s ease-out;
+  `;
+  notification.textContent = message;
+
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    notification.style.animation = 'slideOut 0.3s ease-out';
+    setTimeout(() => notification.remove(), 300);
+  }, 3000);
+}
+
+// Utilities
+function formatDateTime(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function formatDate(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+}
+
+// Add modal and animation styles
+const style = document.createElement('style');
+style.textContent = `
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  
+  .modal.active {
+    display: flex;
+    animation: fadeIn 0.2s;
+  }
+  
+  .modal-content {
+    background: var(--bg-secondary);
+    border-radius: 1rem;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
+  }
+  
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+  
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.375rem;
+    transition: all 0.2s;
+  }
+  
+  .modal-close:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+  
+  .modal-body {
+    padding: 1.5rem;
+  }
+  
+  .modal-form .form-group {
+    margin-bottom: 1rem;
+  }
+  
+  .modal-form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+  
+  .modal-form textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
+  
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  
+  .form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+  }
+  
+  @keyframes slideIn {
+    from { transform: translateX(400px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  
+  @keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(400px); opacity: 0; }
+  }
+`;
+document.head.appendChild(style);
+
+// Track History Management
+let historyMap = null;
+
+async function loadTracksPage() {
+  if (!historyMap) {
+    ymaps.ready(() => {
+      historyMap = new ymaps.Map('history-map', {
+        center: [55.751244, 37.618423],
+        zoom: 14,
+        controls: ['zoomControl', 'fullscreenControl']
+      });
+    });
+  }
+
+  // Population of employees filter
+  const employees = await apiRequest('/employees?role=patrol');
+  const select = document.getElementById('trackFilterUser');
+
+  // Clear existing
+  select.innerHTML = '<option value="">Выберите патрульного</option>';
+  employees.employees.forEach(emp => {
+    const option = document.createElement('option');
+    option.value = emp.id;
+    option.textContent = emp.full_name;
+    select.appendChild(option);
+  });
+}
+
+async function loadSessions() {
+  const userId = document.getElementById('trackFilterUser').value;
+  const date = document.getElementById('trackFilterDate').value;
+
+  if (!userId) {
+    showNotification('Выберите сотрудника', 'error');
+    return;
+  }
+
+  let endpoint = `/gps/sessions?user_id=${userId}`;
+  if (date) endpoint += `&from_date=${date}T00:00:00&to_date=${date}T23:59:59`;
+
+  try {
+    const data = await apiRequest(endpoint);
+    renderSessionsTable(data.sessions);
+  } catch (error) {
+    console.error(error);
+    showNotification('Ошибка загрузки сессий', 'error');
+  }
+}
+
+function renderSessionsTable(sessions) {
+  const tbody = document.getElementById('sessionsTableBody');
+
+  if (sessions.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Нет сессий за указанный период</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sessions.map(s => `
+        <tr>
+            <td>#${s.id}</td>
+            <td>${formatDateTime(s.session_start)}</td>
+            <td>${s.session_end ? formatDateTime(s.session_end) : 'Активна'}</td>
+            <td>${Math.round(s.total_distance_meters || 0)} м</td>
+            <td>${s.scan_count}</td>
+            <td>
+                <button class="btn btn-primary btn-icon" onclick="viewSessionTrack(${s.id}, ${s.user_id})" title="Просмотр пути">🛣️</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function viewSessionTrack(sessionId, userId) {
+  try {
+    const data = await apiRequest(`/gps/tracks?session_id=${sessionId}&user_id=${userId}&limit=5000`);
+
+    if (data.tracks.length === 0) {
+      showNotification('Нет данных GPS для этой сессии', 'warning');
+      return;
+    }
+
+    // Sorting by time
+    const sortedTracks = data.tracks.sort((a, b) => new Date(a.recorded_at) - new Date(b.recorded_at));
+
+    // Clearing map
+    historyMap.geoObjects.removeAll();
+
+    // Creating path
+    const coords = sortedTracks.map(t => [t.latitude, t.longitude]);
+
+    const pathLine = new ymaps.Polyline(coords, {
+      balloonContent: "Путь патруля"
+    }, {
+      strokeColor: "#3b82f6",
+      strokeWidth: 4,
+      strokeOpacity: 0.8
+    });
+
+    historyMap.geoObjects.add(pathLine);
+
+    // Adding start marker
+    const startMarker = new ymaps.Placemark(coords[0], {
+      balloonContent: "Начало пути"
+    }, { preset: 'islands#greenCircleDotIcon' });
+
+    // Adding end marker
+    const endMarker = new ymaps.Placemark(coords[coords.length - 1], {
+      balloonContent: "Конец пути"
+    }, { preset: 'islands#redCircleDotIcon' });
+
+    historyMap.geoObjects.add(startMarker);
+    historyMap.geoObjects.add(endMarker);
+
+    // Centering map
+    historyMap.setBounds(pathLine.geometry.getBounds());
+
+    showNotification('Путь отображен на карте', 'success');
+
+    // Scroll to map
+    document.getElementById('history-map').scrollIntoView({ behavior: 'smooth' });
+  } catch (error) {
+    console.error(error);
+    showNotification('Ошибка загрузки трека', 'error');
+  }
+}
