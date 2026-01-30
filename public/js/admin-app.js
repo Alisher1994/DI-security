@@ -364,9 +364,14 @@ function renderRealtimeMap(checkpoints, patrols) {
                 </label>
             </div>
             
-            <button class="btn btn-primary" onclick="window.open('/print-qr.html?id=${cp.id}&token=${authToken}', '_blank')" style="width: 100%; font-size: 0.85rem; padding: 8px; margin-top: 5px;">
-                📄 Скачать PDF
-            </button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px;">
+                <button class="btn btn-primary" onclick="window.open('/print-qr.html?id=${cp.id}&token=${authToken}', '_blank')" style="font-size: 0.85rem; padding: 8px;">
+                    📄 ПФД
+                </button>
+                <button class="btn btn-secondary" onclick="editCheckpoint(${cp.id})" style="font-size: 0.85rem; padding: 8px;">
+                    ✏️ Изменить
+                </button>
+            </div>
         </div>
       `
     }, {
@@ -402,10 +407,15 @@ function renderRealtimeMap(checkpoints, patrols) {
         // Используем эмодзи вместо стандартного значка
         iconLayout: 'default#imageWithContent',
         iconImageHref: '',
-        iconImageSize: [32, 32],
-        iconImageOffset: [-16, -16],
+        iconImageSize: [48, 48],
+        iconImageOffset: [-24, -40],
         iconContentLayout: ymaps.templateLayoutFactory.createClass(
-          '<div style="font-size: 28px; cursor: pointer; transform: translate(-2px, -5px);">👮</div>'
+          `<div style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+            <div style="font-size: 28px;">👮</div>
+            <div style="background: rgba(15, 23, 42, 0.8); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap;">
+                ${new Date(patrol.recorded_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+           </div>`
         )
       });
 
@@ -474,6 +484,7 @@ async function loadScans() {
 
     const data = await apiRequest(endpoint);
     renderScansTable(data.scans);
+    renderScansSummary(data.scans);
 
     // Load employees for filter if not loaded
     if (document.getElementById('scanFilterUser').options.length === 1) {
@@ -512,6 +523,49 @@ function renderScansTable(scans) {
         <span class="badge ${scan.is_valid ? 'badge-success' : 'badge-danger'}">
           ${scan.is_valid ? 'Валидно' : 'Невалидно'}
         </span>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderScansSummary(scans) {
+  const summarySection = document.getElementById('scansSummarySection');
+  const tbody = document.getElementById('scansSummaryTableBody');
+
+  if (scans.length === 0) {
+    summarySection.style.display = 'none';
+    return;
+  }
+
+  summarySection.style.display = 'block';
+
+  // Группировка
+  const summary = scans.reduce((acc, scan) => {
+    const key = scan.user_name || `ID: ${scan.user_id}`;
+    if (!acc[key]) {
+      acc[key] = {
+        count: 0,
+        lastSeen: scan.scan_time,
+        checkpoints: new Set()
+      };
+    }
+    acc[key].count++;
+    acc[key].checkpoints.add(scan.checkpoint_name);
+    if (new Date(scan.scan_time) > new Date(acc[key].lastSeen)) {
+      acc[key].lastSeen = scan.scan_time;
+    }
+    return acc;
+  }, {});
+
+  tbody.innerHTML = Object.entries(summary).sort((a, b) => b[1].count - a[1].count).map(([name, stats]) => `
+    <tr>
+      <td style="font-weight: 600;">${name}</td>
+      <td>
+        <span class="badge badge-primary" style="font-size: 1rem; padding: 0.5rem 1rem;">${stats.count}</span>
+      </td>
+      <td>${formatDateTime(stats.lastSeen)}</td>
+      <td style="color: var(--text-muted); font-size: 0.8rem;">
+        ${Array.from(stats.checkpoints).slice(0, 3).join(', ')}${stats.checkpoints.size > 3 ? '...' : ''}
       </td>
     </tr>
   `).join('');
@@ -605,16 +659,16 @@ function renderCheckpointsGrid(checkpoints) {
 
   if (checkpoints.length === 0) {
     grid.innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-muted);">
+  < div style = "grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-muted);" >
         <div style="font-size: 3rem; margin-bottom: 1rem;">📍</div>
         <div>Нет контрольных точек</div>
-      </div>
-    `;
+      </div >
+  `;
     return;
   }
 
   grid.innerHTML = checkpoints.map(cp => `
-    <div class="checkpoint-card">
+  < div class="checkpoint-card" >
       <div class="card-header">
         <div>
           <div class="card-title">${cp.name}</div>
@@ -648,13 +702,13 @@ function renderCheckpointsGrid(checkpoints) {
         <button class="btn btn-secondary btn-icon" onclick="editCheckpoint(${cp.id})" title="Редактировать">✏️</button>
         <button class="btn btn-danger btn-icon" onclick="deleteCheckpoint(${cp.id})" title="Удалить">🗑️</button>
       </div>
-    </div>
+    </div >
   `).join('');
 }
 
 async function viewQRCode(id) {
   try {
-    const data = await apiRequest(`/checkpoints/${id}/qrcode`);
+    const data = await apiRequest(`/ checkpoints / ${id}/qrcode`);
 
     showModal({
       title: `QR-код: ${data.name}`,
