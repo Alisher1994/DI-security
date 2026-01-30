@@ -390,7 +390,6 @@ function renderRealtimeMap(checkpoints, patrols) {
   // Add checkpoints
   checkpoints.forEach(cp => {
     const marker = new ymaps.Placemark([cp.latitude, cp.longitude], {
-      iconCaption: cp.name,
       balloonContent: `
         <div style="min-width: 200px; padding: 5px; color: #1e293b;">
             <strong style="font-size: 1.1rem; display: block; margin-bottom: 5px;">${cp.name}</strong>
@@ -418,7 +417,19 @@ function renderRealtimeMap(checkpoints, patrols) {
         </div>
       `
     }, {
-      preset: cp.checkpoint_type === 'kpp' ? 'islands#redDotIconWithCaption' : 'islands#greenDotIconWithCaption'
+      // Используем кастомный лейбл для названия точки
+      iconLayout: 'default#imageWithContent',
+      iconImageHref: '',
+      iconImageSize: [40, 40],
+      iconImageOffset: [-20, -20],
+      iconContentLayout: ymaps.templateLayoutFactory.createClass(
+        `<div style="display: flex; flex-direction: column; align-items: center;">
+          <div style="width: 14px; height: 14px; background: ${cp.checkpoint_type === 'kpp' ? '#ef4444' : '#10b981'}; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 2px ${cp.checkpoint_type === 'kpp' ? '#ef444440' : '#10b98140'};"></div>
+          <div style="margin-top: 4px; background: rgba(255,255,255,0.95); color: #1e293b; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; border: 1px solid #cbd5e1; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            ${cp.name}
+          </div>
+        </div>`
+      )
     });
 
     realtimeMap.geoObjects.add(marker);
@@ -454,9 +465,10 @@ function renderRealtimeMap(checkpoints, patrols) {
         iconContentLayout: ymaps.templateLayoutFactory.createClass(
           `<div style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
             <div style="font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">👮</div>
-            <div style="background: rgba(15, 23, 42, 0.95); color: white; padding: 4px 8px; border-radius: 6px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.4); text-align: center; min-width: 80px;">
-                <div style="font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.2); margin-bottom: 3px; padding-bottom: 2px;">${patrol.full_name}</div>
-                <div style="opacity: 0.9; font-weight: 500;">${new Date(patrol.recorded_at).toLocaleString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
+            <div style="background: rgba(15, 23, 42, 0.95); color: white; padding: 4px 10px; border-radius: 8px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; min-width: 100px;">
+                <div style="font-weight: 800; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.2); margin-bottom: 4px; padding-bottom: 2px;">${patrol.full_name}</div>
+                <div style="opacity: 0.9; font-weight: 600; color: #10b981; font-size: 9px;">● Онлайн</div>
+                <div style="opacity: 0.7; font-size: 9px; margin-top: 2px;">${new Date(patrol.recorded_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
            </div>`
         )
