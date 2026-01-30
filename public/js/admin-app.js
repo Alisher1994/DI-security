@@ -375,15 +375,17 @@ function renderRealtimeMap(checkpoints, patrols) {
 
     realtimeMap.geoObjects.add(marker);
 
-    // Add radius
-    const circle = new ymaps.Circle([[cp.latitude, cp.longitude], cp.radius_meters], {}, {
-      fillColor: cp.checkpoint_type === 'kpp' ? '#ef444420' : '#10b98120',
-      strokeColor: cp.checkpoint_type === 'kpp' ? '#ef4444' : '#10b981',
-      strokeOpacity: 0.5,
-      strokeWidth: 2
-    });
+    // Добавляем радиус только если точка активна
+    if (cp.is_active) {
+      const circle = new ymaps.Circle([[cp.latitude, cp.longitude], cp.radius_meters], {}, {
+        fillColor: cp.checkpoint_type === 'kpp' ? '#ef444420' : '#10b98120',
+        strokeColor: cp.checkpoint_type === 'kpp' ? '#ef4444' : '#10b981',
+        strokeOpacity: 0.5,
+        strokeWidth: 2
+      });
 
-    realtimeMap.geoObjects.add(circle);
+      realtimeMap.geoObjects.add(circle);
+    }
   });
 
   // Add active patrols
@@ -877,10 +879,22 @@ async function toggleCheckpointStatus(id, isActive) {
     });
 
     showNotification(`Точка ${isActive ? 'активирована' : 'деактивирована'}`, 'success');
+
+    // Обновляем текущую активную страницу
+    const activePage = document.querySelector('.page-content.active')?.id;
+    if (activePage === 'realtime-page') {
+      loadRealtimeMap();
+    } else if (activePage === 'checkpoints-page') {
+      loadCheckpoints();
+    }
   } catch (error) {
     console.error(error);
     showNotification('Ошибка при смене статуса', 'error');
-    loadCheckpoints(); // Возвращаем состояние если ошибка
+
+    // Возвращаем состояние если ошибка
+    const activePage = document.querySelector('.page-content.active')?.id;
+    if (activePage === 'realtime-page') loadRealtimeMap();
+    else if (activePage === 'checkpoints-page') loadCheckpoints();
   }
 }
 
