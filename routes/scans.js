@@ -112,37 +112,12 @@ router.post('/scan', [
             });
         }
 
-        // Проверка активной смены
-        const now = new Date();
-        const currentDate = now.toLocaleDateString('en-CA');
-        const currentTime = now.toLocaleTimeString('en-GB', { hour12: false });
-
-        const shiftResult = await client.query(
-            `SELECT * FROM shifts 
-       WHERE user_id = $1 
-       AND shift_date = $2 
-       AND shift_start <= $3 
-       AND shift_end >= $3 
-       AND is_active = true
-       LIMIT 1`,
-            [userId, currentDate, currentTime]
-        );
-
-        if (shiftResult.rows.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(403).json({
-                error: 'У вас нет активной смены на текущее время'
-            });
-        }
-
-        const shift = shiftResult.rows[0];
-
-        // Запись сканирования
+        // Запись сканирования (без привязки к смене)
         const scanResult = await client.query(
             `INSERT INTO scans (user_id, checkpoint_id, latitude, longitude, distance_meters, is_valid, shift_id, notes)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-            [userId, checkpoint.id, latitude, longitude, distance, isWithinRadius, shift.id, notes || null]
+            [userId, checkpoint.id, latitude, longitude, distance, isWithinRadius, null, notes || null]
         );
 
         await client.query('COMMIT');
@@ -154,12 +129,7 @@ router.post('/scan', [
                 name: checkpoint.name,
                 type: checkpoint.checkpoint_type
             },
-            distance_meters: distance,
-            shift: {
-                date: shift.shift_date,
-                start: shift.shift_start,
-                end: shift.shift_end
-            }
+            distance_meters: distance
         });
 
     } catch (error) {

@@ -2,7 +2,6 @@
 const API_BASE = window.location.origin + '/api';
 let authToken = localStorage.getItem('authToken');
 let currentUser = null;
-let currentShift = null;
 let patrolSession = null;
 let map = null;
 let userMarker = null;
@@ -172,8 +171,8 @@ async function initializeMainScreen() {
         initializeMap();
     }
 
-    // Load current shift
-    await loadCurrentShift();
+    // QR scanning is always enabled for authenticated users
+    document.getElementById('scan-qr-btn').disabled = false;
 
     // Load checkpoints
     await loadCheckpoints();
@@ -226,57 +225,7 @@ function getRoleLabel(role) {
     return labels[role] || role;
 }
 
-// Shift Management
-async function loadCurrentShift() {
-    try {
-        const data = await apiRequest('/shifts/current');
 
-        if (data.has_active_shift) {
-            currentShift = data.shift;
-            showActiveShift(currentShift);
-            document.getElementById('scan-qr-btn').disabled = false;
-        } else {
-            showNoShift();
-            document.getElementById('scan-qr-btn').disabled = true;
-        }
-    } catch (error) {
-        console.error('Failed to load shift:', error);
-        showNoShift();
-    }
-}
-
-function showActiveShift(shift) {
-    document.getElementById('no-shift').style.display = 'none';
-    document.getElementById('active-shift').style.display = 'block';
-    document.getElementById('shift-start').textContent = shift.shift_start.slice(0, 5);
-    document.getElementById('shift-end').textContent = shift.shift_end.slice(0, 5);
-
-    updateShiftTimeRemaining(shift);
-}
-
-function showNoShift() {
-    document.getElementById('no-shift').style.display = 'block';
-    document.getElementById('active-shift').style.display = 'none';
-}
-
-function updateShiftTimeRemaining(shift) {
-    const now = new Date();
-    // Приводим время окончания к формату текущей даты для расчета разницы
-    const [hours, minutes] = shift.shift_end.split(':');
-    const shiftEnd = new Date();
-    shiftEnd.setHours(parseInt(hours), parseInt(minutes), 0);
-
-    const diff = shiftEnd - now;
-    const timeRemainingEl = document.getElementById('shift-time-remaining');
-
-    if (diff > 0) {
-        const hoursLeft = Math.floor(diff / (1000 * 60 * 60));
-        const minutesLeft = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        timeRemainingEl.textContent = `До конца смены: ${hoursLeft}ч ${minutesLeft}м`;
-    } else {
-        timeRemainingEl.textContent = 'Смена завершена';
-    }
-}
 
 // Patrol Session Management
 async function startPatrolSession() {
@@ -645,9 +594,6 @@ async function loadScanHistory() {
 
 // Realtime Updates
 function startRealtimeUpdates() {
-    // Reload shift status every minute
-    setInterval(loadCurrentShift, 60000);
-
     // Reload scan history every 30 seconds
     setInterval(loadScanHistory, 30000);
 }
