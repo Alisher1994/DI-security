@@ -8,14 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const router = express.Router();
-
-const fontsPath = path.join(__dirname, '../fonts');
-const ROBOTO_BOLD = path.join(fontsPath, 'Roboto-Bold.ttf');
-const ROBOTO_REGULAR = path.join(fontsPath, 'Roboto-Regular.ttf');
 
 // Генерация уникального 4-значного кода
 async function generateShortCode() {
@@ -63,20 +56,6 @@ router.post('/', [authenticateToken, authorizeRole('admin')], async (req, res) =
     }
 });
 
-router.put('/:id', [authenticateToken, authorizeRole('admin')], async (req, res) => {
-    const { id } = req.params;
-    const { name, description, latitude, longitude, radius_meters, is_active } = req.body;
-    try {
-        const result = await pool.query(
-            `UPDATE checkpoints SET name = COALESCE($1, name), description = COALESCE($2, description), updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *`,
-            [name, description, id]
-        );
-        res.json({ message: 'Обновлено', checkpoint: result.rows[0] });
-    } catch (error) {
-        res.status(500).json({ error: 'Ошибка сервера' });
-    }
-});
-
 router.delete('/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
     try {
         await pool.query('DELETE FROM checkpoints WHERE id = $1', [req.params.id]);
@@ -98,95 +77,53 @@ router.get('/:id/qrcode', authenticateToken, async (req, res) => {
     }
 });
 
-// ГЕНЕРАЦИЯ PDF (УЛУЧШЕННАЯ)
+// ГЕНЕРАЦИЯ PDF (МАКСИМАЛЬНО ПРОСТАЯ И СТАБИЛЬНАЯ)
 router.get('/:id/qrcode/print', authenticateToken, async (req, res) => {
-    console.log(`[PDF] Request received for CP ID: ${req.params.id}`);
-
     try {
         const { id } = req.params;
         const result = await pool.query('SELECT qr_code_data, short_code, name, checkpoint_type FROM checkpoints WHERE id = $1', [id]);
 
-        if (result.rows.length === 0) {
-            console.log(`[PDF] Checkpoint ${id} not found`);
-            return res.status(404).send('Checkpoint not found');
-        }
+        if (result.rows.length === 0) return res.status(404).send('Not found');
 
         const { qr_code_data, short_code, name, checkpoint_type } = result.rows[0];
         const displayCode = short_code || qr_code_data.slice(-4);
 
-        console.log(`[PDF] Data fetched: ${name}, Code: ${displayCode}`);
+        // QR Картинка
+        const qrBuffer = await QRCode.toBuffer(qr_code_data, { errorCorrectionLevel: 'H', margin: 1, width: 600 });
 
-        // Генерируем QR буфер заранее
-        const qrBuffer = await QRCode.toBuffer(qr_code_data, {
-            errorCorrectionLevel: 'H',
-            margin: 1,
-            width: 600
-        });
-        console.log(`[PDF] QR Buffer generated`);
-
-        // Создаем PDF в памяти
         const doc = new PDFDocument({ size: 'A4', margin: 50 });
         const chunks = [];
-
         doc.on('data', chunk => chunks.push(chunk));
         doc.on('end', () => {
-            console.log(`[PDF] Document generation finished, sending result...`);
             const pdfBuffer = Buffer.concat(chunks);
-
-            const safeName = name.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_');
-            const filename = `QR_${displayCode}_${safeName}.pdf`;
-
             res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+            res.setHeader('Content-Disposition', `attachment; filename=QR_${displayCode}.pdf`);
             res.send(pdfBuffer);
         });
 
-        // Проверка шрифтов
-        const hasBold = fs.existsSync(ROBOTO_BOLD) && fs.statSync(ROBOTO_BOLD).size > 1000;
-        const hasReg = fs.existsSync(ROBOTO_REGULAR) && fs.statSync(ROBOTO_REGULAR).size > 1000;
-
-        // Рисуем контент
-        doc.fillColor('#00B14C');
-        if (hasBold) doc.font(ROBOTO_BOLD); else doc.font('Helvetica-Bold');
-        doc.fontSize(42).text('DI SECURITY', { align: 'center' });
-
+        // Используем ТОЛЬКО стандартный шрифт Helvetica (он не поддерживает кириллицу, но не ломает сервер)
+        doc.fillColor('#00B14C').font('Helvetica-Bold').fontSize(42).text('DI SECURITY', { align: 'center' });
         doc.moveDown(1.5);
 
-        doc.fillColor('#1e293b');
-        if (hasBold) doc.font(ROBOTO_BOLD); else doc.font('Helvetica-Bold');
-        doc.fontSize(36).text(name, { align: 'center' });
-
+        doc.fillColor('#1e293b').font('Helvetica-Bold').fontSize(30).text(name, { align: 'center' });
         doc.moveDown(0.5);
 
-        doc.fillColor('#64748b');
-        if (hasReg) doc.font(ROBOTO_REGULAR); else doc.font('Helvetica');
-        doc.fontSize(22).text(`Тип: ${checkpoint_type === 'kpp' ? 'КПП' : 'Патруль'}`, { align: 'center' });
+        const typeLabel = checkpoint_type === 'kpp' ? 'KPP' : 'Patrol';
+        doc.fillColor('#64748b').font('Helvetica').fontSize(20).text(`Type: ${typeLabel}`, { align: 'center' });
 
         doc.moveDown(2);
+        doc.image(qrBuffer, (doc.page.width - 300) / 2, doc.y, { width: 300 });
 
-        // QR Картинка
-        const qrSize = 300;
-        doc.image(qrBuffer, (doc.page.width - qrSize) / 2, doc.y, { width: qrSize });
+        doc.moveDown(2);
+        doc.fillColor('#1e293b').font('Helvetica-Bold').fontSize(80).text(displayCode, { align: 'center' });
+        doc.fillColor('#94a3b8').font('Helvetica').fontSize(20).text('Manual Entry Code', { align: 'center' });
 
-        doc.moveDown(1.5);
-
-        doc.fillColor('#1e293b');
-        if (hasBold) doc.font(ROBOTO_BOLD); else doc.font('Helvetica-Bold');
-        doc.fontSize(84).text(displayCode, { align: 'center' });
-
-        doc.fillColor('#94a3b8');
-        if (hasReg) doc.font(ROBOTO_REGULAR); else doc.font('Helvetica');
-        doc.fontSize(20).text('Код для ручного ввода', { align: 'center' });
-
-        doc.fontSize(16).text('Сканируйте QR или введите код вручную', 50, doc.page.height - 80, { align: 'center' });
+        doc.fontSize(14).text('Scan QR or enter code manually', 50, doc.page.height - 80, { align: 'center' });
 
         doc.end();
-
     } catch (error) {
-        console.error('[PDF] Fatal Error:', error);
-        if (!res.headersSent) {
-            res.status(500).send('Error generating PDF: ' + error.message);
-        }
+        console.error('PDF Error:', error);
+        res.status(500).send('Error');
     }
 });
 
