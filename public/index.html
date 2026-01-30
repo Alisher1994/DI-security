@@ -20,8 +20,12 @@
             </div>
             <form id="login-form" class="login-form">
                 <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" required autocomplete="email">
+                    <label for="phone">Телефон</label>
+                    <div class="phone-input-wrapper">
+                        <span class="phone-prefix">+998</span>
+                        <input type="tel" id="phone" name="phone" required autocomplete="tel" placeholder="XX XXX XX XX"
+                            maxlength="12">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="password">Пароль</label>

@@ -8,37 +8,41 @@ const router = express.Router();
 
 // Регистрация нового пользователя (только для админа)
 router.post('/register', [
-    body('email').isEmail().normalizeEmail(),
+    body('phone').trim().notEmpty().withMessage('Телефон обязателен'),
     body('password').isLength({ min: 6 }),
-    body('full_name').trim().notEmpty(),
-    body('role').isIn(['admin', 'kpp', 'patrol']),
-    body('phone').optional().trim()
+    body('first_name').trim().notEmpty().withMessage('Имя обязательно'),
+    body('last_name').trim().notEmpty().withMessage('Фамилия обязательна'),
+    body('patronymic').optional().trim(),
+    body('role').isIn(['admin', 'kpp', 'patrol'])
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password, full_name, role, phone } = req.body;
+    const { phone, password, first_name, last_name, patronymic, role } = req.body;
 
     try {
         // Проверка существующего пользователя
         const existingUser = await pool.query(
-            'SELECT id FROM users WHERE email = $1',
-            [email]
+            'SELECT id FROM users WHERE phone = $1',
+            [phone]
         );
 
         if (existingUser.rows.length > 0) {
-            return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
+            return res.status(400).json({ error: 'Пользователь с таким телефоном уже существует' });
         }
 
         // Хеширование пароля
         const password_hash = await bcrypt.hash(password, 10);
 
+        // Формируем полное имя
+        const full_name = [last_name, first_name, patronymic].filter(Boolean).join(' ');
+
         // Создание пользователя
         const result = await pool.query(
-            'INSERT INTO users (email, password_hash, full_name, role, phone) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, full_name, role, phone, created_at',
-            [email, password_hash, full_name, role, phone]
+            'INSERT INTO users (phone, password_hash, first_name, last_name, patronymic, full_name, role) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, phone, first_name, last_name, patronymic, full_name, role, created_at',
+            [phone, password_hash, first_name, last_name, patronymic || null, full_name, role]
         );
 
         res.status(201).json({
@@ -51,9 +55,9 @@ router.post('/register', [
     }
 });
 
-// Вход в систему
+// Вход в систему по телефону
 router.post('/login', [
-    body('email').isEmail().normalizeEmail(),
+    body('phone').trim().notEmpty().withMessage('Телефон обязателен'),
     body('password').notEmpty()
 ], async (req, res) => {
     const errors = validationResult(req);
@@ -61,17 +65,17 @@ router.post('/login', [
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password } = req.body;
+    const { phone, password } = req.body;
 
     try {
-        // Поиск пользователя
+        // Поиск пользователя по телефону
         const result = await pool.query(
-            'SELECT id, email, password_hash, full_name, role, phone FROM users WHERE email = $1',
-            [email]
+            'SELECT id, phone, password_hash, first_name, last_name, patronymic, full_name, role FROM users WHERE phone = $1',
+            [phone]
         );
 
         if (result.rows.length === 0) {
-            return res.status(401).json({ error: 'Неверный email или пароль' });
+            return res.status(401).json({ error: 'Неверный телефон или пароль' });
         }
 
         const user = result.rows[0];
@@ -79,14 +83,14 @@ router.post('/login', [
         // Проверка пароля
         const isValidPassword = await bcrypt.compare(password, user.password_hash);
         if (!isValidPassword) {
-            return res.status(401).json({ error: 'Неверный email или пароль' });
+            return res.status(401).json({ error: 'Неверный телефон или пароль' });
         }
 
         // Генерация JWT токена
         const token = jwt.sign(
             {
                 id: user.id,
-                email: user.email,
+                phone: user.phone,
                 role: user.role,
                 full_name: user.full_name
             },
@@ -99,10 +103,12 @@ router.post('/login', [
             token,
             user: {
                 id: user.id,
-                email: user.email,
+                phone: user.phone,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                patronymic: user.patronymic,
                 full_name: user.full_name,
-                role: user.role,
-                phone: user.phone
+                role: user.role
             }
         });
     } catch (error) {
@@ -123,7 +129,7 @@ router.get('/me', async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         const result = await pool.query(
-            'SELECT id, email, full_name, role, phone, created_at FROM users WHERE id = $1',
+            'SELECT id, phone, first_name, last_name, patronymic, full_name, role, created_at FROM users WHERE id = $1',
             [decoded.id]
         );
 

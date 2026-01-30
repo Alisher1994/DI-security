@@ -788,13 +788,12 @@ function renderEmployeesTable(employees) {
     <tr>
       <td>${emp.id}</td>
       <td>${emp.full_name}</td>
-      <td>${emp.email}</td>
+      <td>${emp.phone || '-'}</td>
       <td>
         <span class="badge ${emp.role === 'admin' ? 'badge-danger' : 'badge-success'}">
           ${getRoleLabel(emp.role)}
         </span>
       </td>
-      <td>${emp.phone || '-'}</td>
       <td>
         <button class="btn btn-secondary btn-icon" onclick="editEmployee(${emp.id})" title="Редактировать">✏️</button>
         ${emp.id !== currentUser.id ? `<button class="btn btn-danger btn-icon" onclick="deleteEmployee(${emp.id})" title="Удалить">🗑️</button>` : ''}
@@ -816,19 +815,26 @@ function showEmployeeModal(employee = null) {
     content: `
       <form id="employeeForm" class="modal-form">
         <div class="form-group">
-          <label>ФИО</label>
-          <input type="text" name="full_name" class="input-field" value="${isEdit ? employee.full_name : ''}" required>
+          <label>Фамилия *</label>
+          <input type="text" name="last_name" class="input-field" value="${isEdit ? (employee.last_name || '') : ''}" required>
         </div>
         <div class="form-group">
-          <label>Email</label>
-          <input type="email" name="email" class="input-field" value="${isEdit ? employee.email : ''}" required>
+          <label>Имя *</label>
+          <input type="text" name="first_name" class="input-field" value="${isEdit ? (employee.first_name || '') : ''}" required>
         </div>
         <div class="form-group">
-          <label>Телефон</label>
-          <input type="tel" name="phone" class="input-field" value="${isEdit ? (employee.phone || '') : ''}">
+          <label>Отчество</label>
+          <input type="text" name="patronymic" class="input-field" value="${isEdit ? (employee.patronymic || '') : ''}">
         </div>
         <div class="form-group">
-          <label>Роль</label>
+          <label>Телефон *</label>
+          <div class="phone-input-group">
+            <span class="phone-prefix-admin">+998</span>
+            <input type="tel" name="phone_input" id="phone_input" class="input-field phone-field" value="${isEdit ? (employee.phone ? employee.phone.replace('+998', '') : '') : ''}" placeholder="XX XXX XX XX" maxlength="12" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Роль *</label>
           <select name="role" class="input-field" required>
             <option value="kpp" ${isEdit && employee.role === 'kpp' ? 'selected' : ''}>КПП</option>
             <option value="patrol" ${isEdit && employee.role === 'patrol' ? 'selected' : ''}>Патруль</option>
@@ -837,10 +843,15 @@ function showEmployeeModal(employee = null) {
         </div>
         ${!isEdit ? `
           <div class="form-group">
-            <label>Пароль</label>
+            <label>Пароль *</label>
             <input type="password" name="password" class="input-field" minlength="6" required>
           </div>
-        ` : '<input type="hidden" name="password" value="">'}
+        ` : `
+          <div class="form-group">
+            <label>Новый пароль (оставьте пустым, чтобы не менять)</label>
+            <input type="password" name="password" class="input-field" minlength="6">
+          </div>
+        `}
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
           <button type="submit" class="btn btn-success">${isEdit ? 'Сохранить' : 'Создать'}</button>
@@ -852,10 +863,17 @@ function showEmployeeModal(employee = null) {
         e.preventDefault();
 
         const formData = new FormData(e.target);
-        const data = Object.fromEntries(formData);
+        const data = {};
 
-        // Remove password if empty (for edit)
-        if (!data.password) delete data.password;
+        // Собираем данные
+        data.first_name = formData.get('first_name');
+        data.last_name = formData.get('last_name');
+        data.patronymic = formData.get('patronymic') || '';
+        data.phone = '+998' + formData.get('phone_input').replace(/\s/g, '');
+        data.role = formData.get('role');
+
+        const password = formData.get('password');
+        if (password) data.password = password;
 
         try {
           if (isEdit) {

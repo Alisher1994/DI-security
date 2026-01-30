@@ -11,11 +11,13 @@ async function initDatabase() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        email VARCHAR(255) UNIQUE NOT NULL,
+        phone VARCHAR(50) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
+        first_name VARCHAR(100) NOT NULL,
+        last_name VARCHAR(100) NOT NULL,
+        patronymic VARCHAR(100),
         full_name VARCHAR(255) NOT NULL,
         role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'kpp', 'patrol')),
-        phone VARCHAR(50),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -40,7 +42,7 @@ async function initDatabase() {
     `);
     console.log('✅ Таблица checkpoints создана');
 
-    // Создание таблицы смен
+    // Создание таблицы смен (оставляем для совместимости)
     await client.query(`
       CREATE TABLE IF NOT EXISTS shifts (
         id SERIAL PRIMARY KEY,
@@ -114,32 +116,32 @@ async function initDatabase() {
     // Создание администратора по умолчанию
     const adminPassword = await bcrypt.hash('admin123', 10);
     await client.query(`
-      INSERT INTO users (email, password_hash, full_name, role, phone)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (email) DO NOTHING;
-    `, ['admin@example.com', adminPassword, 'Администратор Системы', 'admin', '+7 (999) 999-99-99']);
-    console.log('✅ Администратор по умолчанию создан (admin@example.com / admin123)');
+      INSERT INTO users (phone, password_hash, first_name, last_name, patronymic, full_name, role)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (phone) DO NOTHING;
+    `, ['+998901234567', adminPassword, 'Админ', 'Администратор', 'Системович', 'Администратор Админ Системович', 'admin']);
+    console.log('✅ Администратор по умолчанию создан (+998901234567 / admin123)');
 
-    // Создание тестовых данных (опционально)
+    // Создание тестовых данных
     const testPassword = await bcrypt.hash('test123', 10);
 
     // Тестовый КПП сотрудник
     const kppResult = await client.query(`
-      INSERT INTO users (email, password_hash, full_name, role, phone)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (email) DO NOTHING
+      INSERT INTO users (phone, password_hash, first_name, last_name, patronymic, full_name, role)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (phone) DO NOTHING
       RETURNING id;
-    `, ['kpp@example.com', testPassword, 'Иванов Иван (КПП)', 'kpp', '+7 (111) 111-11-11']);
+    `, ['+998901111111', testPassword, 'Иван', 'Иванов', 'Иванович', 'Иванов Иван Иванович', 'kpp']);
 
     // Тестовый патруль
     const patrolResult = await client.query(`
-      INSERT INTO users (email, password_hash, full_name, role, phone)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (email) DO NOTHING
+      INSERT INTO users (phone, password_hash, first_name, last_name, patronymic, full_name, role)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (phone) DO NOTHING
       RETURNING id;
-    `, ['patrol@example.com', testPassword, 'Петров Петр (Патруль)', 'patrol', '+7 (222) 222-22-22']);
+    `, ['+998902222222', testPassword, 'Петр', 'Петров', 'Петрович', 'Петров Петр Петрович', 'patrol']);
 
-    console.log('✅ Тестовые пользователи созданы (kpp@example.com / test123 и patrol@example.com / test123)');
+    console.log('✅ Тестовые пользователи созданы (+998901111111 / test123 и +998902222222 / test123)');
 
     // Создание тестовых контрольных точек (только если таблица пуста)
     const checkCP = await client.query('SELECT id FROM checkpoints LIMIT 1');
@@ -163,33 +165,11 @@ async function initDatabase() {
       console.log('✅ Тестовые контрольные точки созданы');
     }
 
-    // Создание тестовых смен (только если таблица пуста)
-    const checkShifts = await client.query('SELECT id FROM shifts LIMIT 1');
-    if (checkShifts.rows.length === 0) {
-      const today = new Date().toISOString().split('T')[0];
-      if (kppResult && kppResult.rows.length > 0) {
-        await client.query(`
-            INSERT INTO shifts (user_id, shift_date, shift_start, shift_end)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT DO NOTHING;
-          `, [kppResult.rows[0].id, today, '08:00:00', '20:00:00']);
-      }
-
-      if (patrolResult && patrolResult.rows.length > 0) {
-        await client.query(`
-            INSERT INTO shifts (user_id, shift_date, shift_start, shift_end)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT DO NOTHING;
-          `, [patrolResult.rows[0].id, today, '10:00:00', '22:00:00']);
-      }
-      console.log('✅ Тестовые смены созданы');
-    }
-
     console.log('\n🎉 Инициализация базы данных завершена успешно!');
     console.log('\n📝 Учетные данные для входа:');
-    console.log('   Админ: admin@example.com / admin123');
-    console.log('   КПП: kpp@example.com / test123');
-    console.log('   Патруль: patrol@example.com / test123\n');
+    console.log('   Админ: +998901234567 / admin123');
+    console.log('   КПП: +998901111111 / test123');
+    console.log('   Патруль: +998902222222 / test123\n');
 
   } catch (error) {
     console.error('❌ Ошибка при инициализации базы данных:', error);

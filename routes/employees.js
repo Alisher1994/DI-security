@@ -11,7 +11,7 @@ router.get('/', authenticateToken, authorizeRole('admin'), async (req, res) => {
     try {
         const { role } = req.query;
 
-        let query = 'SELECT id, email, full_name, role, phone, created_at FROM users WHERE 1=1';
+        let query = 'SELECT id, phone, first_name, last_name, patronymic, full_name, role, created_at FROM users WHERE 1=1';
         const values = [];
         let counter = 1;
 
@@ -42,7 +42,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
         }
 
         const result = await pool.query(
-            'SELECT id, email, full_name, role, phone, created_at FROM users WHERE id = $1',
+            'SELECT id, phone, first_name, last_name, patronymic, full_name, role, created_at FROM users WHERE id = $1',
             [id]
         );
 
@@ -61,37 +61,41 @@ router.get('/:id', authenticateToken, async (req, res) => {
 router.post('/', [
     authenticateToken,
     authorizeRole('admin'),
-    body('email').isEmail().normalizeEmail(),
-    body('password').isLength({ min: 6 }),
-    body('full_name').trim().notEmpty(),
-    body('role').isIn(['admin', 'kpp', 'patrol']),
-    body('phone').optional().trim()
+    body('phone').trim().notEmpty().withMessage('Телефон обязателен'),
+    body('password').isLength({ min: 6 }).withMessage('Пароль минимум 6 символов'),
+    body('first_name').trim().notEmpty().withMessage('Имя обязательно'),
+    body('last_name').trim().notEmpty().withMessage('Фамилия обязательна'),
+    body('patronymic').optional().trim(),
+    body('role').isIn(['admin', 'kpp', 'patrol'])
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password, full_name, role, phone } = req.body;
+    const { phone, password, first_name, last_name, patronymic, role } = req.body;
 
     try {
         // Проверка существующего пользователя
         const existingUser = await pool.query(
-            'SELECT id FROM users WHERE email = $1',
-            [email]
+            'SELECT id FROM users WHERE phone = $1',
+            [phone]
         );
 
         if (existingUser.rows.length > 0) {
-            return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
+            return res.status(400).json({ error: 'Пользователь с таким телефоном уже существует' });
         }
 
         // Хеширование пароля
         const password_hash = await bcrypt.hash(password, 10);
 
+        // Формируем полное имя
+        const full_name = [last_name, first_name, patronymic].filter(Boolean).join(' ');
+
         // Создание пользователя
         const result = await pool.query(
-            'INSERT INTO users (email, password_hash, full_name, role, phone) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, full_name, role, phone, created_at',
-            [email, password_hash, full_name, role, phone]
+            'INSERT INTO users (phone, password_hash, first_name, last_name, patronymic, full_name, role) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, phone, first_name, last_name, patronymic, full_name, role, created_at',
+            [phone, password_hash, first_name, last_name, patronymic || null, full_name, role]
         );
 
         res.status(201).json({
@@ -107,9 +111,10 @@ router.post('/', [
 // Обновление сотрудника
 router.put('/:id', [
     authenticateToken,
-    body('email').optional().isEmail().normalizeEmail(),
-    body('full_name').optional().trim().notEmpty(),
-    body('phone').optional().trim(),
+    body('phone').optional().trim().notEmpty(),
+    body('first_name').optional().trim().notEmpty(),
+    body('last_name').optional().trim().notEmpty(),
+    body('patronymic').optional().trim(),
     body('password').optional().isLength({ min: 6 })
 ], async (req, res) => {
     const errors = validationResult(req);
@@ -119,7 +124,7 @@ router.put('/:id', [
 
     const { id } = req.params;
     const { role: currentRole, id: currentUserId } = req.user;
-    const { email, full_name, phone, password, role } = req.body;
+    const { phone, first_name, last_name, patronymic, password, role } = req.body;
 
     try {
         // Не админ может обновить только свои данные (и не может изменить роль)
@@ -132,22 +137,44 @@ router.put('/:id', [
             }
         }
 
+        // Получаем текущие данные пользователя для формирования full_name
+        const currentUser = await pool.query('SELECT first_name, last_name, patronymic FROM users WHERE id = $1', [id]);
+        if (currentUser.rows.length === 0) {
+            return res.status(404).json({ error: 'Сотрудник не найден' });
+        }
+
         const updates = [];
         const values = [];
         let counter = 1;
 
-        if (email !== undefined) {
-            updates.push(`email = $${counter++}`);
-            values.push(email);
-        }
-        if (full_name !== undefined) {
-            updates.push(`full_name = $${counter++}`);
-            values.push(full_name);
-        }
+        const newFirstName = first_name !== undefined ? first_name : currentUser.rows[0].first_name;
+        const newLastName = last_name !== undefined ? last_name : currentUser.rows[0].last_name;
+        const newPatronymic = patronymic !== undefined ? patronymic : currentUser.rows[0].patronymic;
+
         if (phone !== undefined) {
             updates.push(`phone = $${counter++}`);
             values.push(phone);
         }
+        if (first_name !== undefined) {
+            updates.push(`first_name = $${counter++}`);
+            values.push(first_name);
+        }
+        if (last_name !== undefined) {
+            updates.push(`last_name = $${counter++}`);
+            values.push(last_name);
+        }
+        if (patronymic !== undefined) {
+            updates.push(`patronymic = $${counter++}`);
+            values.push(patronymic || null);
+        }
+
+        // Обновляем full_name если изменились составляющие
+        if (first_name !== undefined || last_name !== undefined || patronymic !== undefined) {
+            const full_name = [newLastName, newFirstName, newPatronymic].filter(Boolean).join(' ');
+            updates.push(`full_name = $${counter++}`);
+            values.push(full_name);
+        }
+
         if (password !== undefined) {
             const password_hash = await bcrypt.hash(password, 10);
             updates.push(`password_hash = $${counter++}`);
@@ -166,7 +193,7 @@ router.put('/:id', [
         values.push(id);
 
         const result = await pool.query(
-            `UPDATE users SET ${updates.join(', ')} WHERE id = $${counter} RETURNING id, email, full_name, role, phone, created_at, updated_at`,
+            `UPDATE users SET ${updates.join(', ')} WHERE id = $${counter} RETURNING id, phone, first_name, last_name, patronymic, full_name, role, created_at, updated_at`,
             values
         );
 
@@ -225,12 +252,10 @@ router.get('/:id/stats', authenticateToken, async (req, res) => {
         const statsResult = await pool.query(`
       SELECT 
         COUNT(DISTINCT s.id) as total_scans,
-        COUNT(DISTINCT sh.id) as total_shifts,
         COUNT(DISTINCT ps.id) as total_sessions,
         MAX(s.scan_time) as last_scan
       FROM users u
       LEFT JOIN scans s ON u.id = s.user_id
-      LEFT JOIN shifts sh ON u.id = sh.user_id
       LEFT JOIN patrol_sessions ps ON u.id = ps.user_id
       WHERE u.id = $1
       GROUP BY u.id

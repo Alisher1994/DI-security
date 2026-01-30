@@ -101,13 +101,14 @@ async function apiRequest(endpoint, options = {}) {
 async function handleLogin(e) {
     e.preventDefault();
 
-    const email = document.getElementById('email').value;
+    const phoneInput = document.getElementById('phone').value.replace(/\s/g, '');
+    const phone = '+998' + phoneInput;
     const password = document.getElementById('password').value;
 
     try {
         const data = await apiRequest('/auth/login', {
             method: 'POST',
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ phone, password })
         });
 
         authToken = data.token;
