@@ -521,6 +521,14 @@ body {
     border-radius: 50%;
 }
 
+.legend-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+}
+
 /* Cards Grid */
 .cards-grid {
     display: grid;

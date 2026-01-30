@@ -151,6 +151,7 @@ function handleLogout() {
 function updateDateTime() {
   const now = new Date();
   document.getElementById('current-datetime').textContent = now.toLocaleString('ru-RU', {
+    timeZone: 'Asia/Tashkent',
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -209,7 +210,11 @@ async function loadScansChartData() {
     date.setDate(date.getDate() - i);
     const dateStr = date.toISOString().split('T')[0];
 
-    labels.push(date.toLocaleDateString('ru-RU', { month: 'short', day: 'numeric' }));
+    labels.push(date.toLocaleDateString('ru-RU', {
+      timeZone: 'Asia/Tashkent',
+      month: 'short',
+      day: 'numeric'
+    }));
 
     try {
       const scans = await apiRequest(`/scans?from_date=${dateStr}T00:00:00&to_date=${dateStr}T23:59:59`);
@@ -398,14 +403,21 @@ function renderRealtimeMap(checkpoints, patrols) {
   patrols.forEach(patrol => {
     if (patrol.latitude && patrol.longitude) {
       const marker = new ymaps.Placemark([patrol.latitude, patrol.longitude], {
-        iconCaption: patrol.full_name,
+        hintContent: patrol.full_name,
         balloonContent: `
           <strong>${patrol.full_name}</strong><br>
           <small>Последнее обновление: ${formatDateTime(patrol.recorded_at)}</small><br>
           <small>Точность: ${Math.round(patrol.accuracy)}м</small>
         `
       }, {
-        preset: 'islands#blueDotIcon'
+        // Используем эмодзи вместо стандартного значка
+        iconLayout: 'default#imageWithContent',
+        iconImageHref: '',
+        iconImageSize: [32, 32],
+        iconImageOffset: [-16, -16],
+        iconContentLayout: ymaps.templateLayoutFactory.createClass(
+          '<div style="font-size: 28px; cursor: pointer; transform: translate(-2px, -5px);">👮</div>'
+        )
       });
 
       realtimeMap.geoObjects.add(marker);
@@ -1355,6 +1367,7 @@ function formatDateTime(dateString) {
   if (!dateString) return '-';
   const date = new Date(dateString);
   return date.toLocaleString('ru-RU', {
+    timeZone: 'Asia/Tashkent',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -1367,6 +1380,7 @@ function formatDate(dateString) {
   if (!dateString) return '-';
   const date = new Date(dateString);
   return date.toLocaleDateString('ru-RU', {
+    timeZone: 'Asia/Tashkent',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
