@@ -595,8 +595,8 @@ async function viewQRCode(id) {
             <div style="font-size: 2.5rem; font-weight: bold; color: var(--text-primary); letter-spacing: 5px;">${data.short_code}</div>
           </div>
           <div style="margin-top: 2rem; display: flex; flex-direction: column; gap: 0.75rem;">
-            <button class="btn btn-primary" onclick="window.open('/api/checkpoints/${id}/qrcode/print?token=${authToken}', '_blank')" style="width: 100%;">
-              🖨️ Скачать для печати (A4 PDF)
+            <button class="btn btn-primary" onclick="window.open('/print-qr.html?id=${id}&token=${authToken}', '_blank')" style="width: 100%;">
+              🖨️ Скачать для печати (A4 Прямая печать)
             </button>
             <button class="btn btn-secondary" onclick="downloadQRCode('${data.qr_code}', '${data.name}')" style="width: 100%;">
               💾 Скачать только QR
