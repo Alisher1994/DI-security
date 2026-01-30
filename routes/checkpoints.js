@@ -257,13 +257,13 @@ router.get('/:id/qrcode/print', authenticateToken, async (req, res) => {
 
         // Рисуем текстовый логотип
         ctx.fillStyle = '#00B14C';
-        ctx.font = 'bold 36px Arial, sans-serif';
+        ctx.font = 'bold 36px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('DI SECURITY', width / 2, logoY + 45);
 
         // Название локации
         ctx.fillStyle = '#1e293b';
-        ctx.font = 'bold 32px Arial, sans-serif';
+        ctx.font = 'bold 32px sans-serif';
         ctx.textAlign = 'center';
 
         // Разбиваем длинные названия на строки
@@ -319,25 +319,30 @@ router.get('/:id/qrcode/print', authenticateToken, async (req, res) => {
         // 4-значный код
         const codeY = qrY + qrSize + 60;
         ctx.fillStyle = '#1e293b';
-        ctx.font = 'bold 72px Arial, sans-serif';
+        ctx.font = 'bold 72px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(displayCode, width / 2, codeY);
 
         // Подпись под кодом
         ctx.fillStyle = '#94a3b8';
-        ctx.font = '18px Arial, sans-serif';
+        ctx.font = '18px sans-serif';
         ctx.fillText('Код для ручного ввода', width / 2, codeY + 35);
 
         // Нижняя информация
         const bottomY = height - 50;
         ctx.fillStyle = '#94a3b8';
-        ctx.font = '14px Arial, sans-serif';
+        ctx.font = '14px sans-serif'; // Убираем Arial для совместимости с Linux
         ctx.fillText('Наведите камеру на QR код или введите код вручную', width / 2, bottomY);
 
         // Отправляем изображение
         const buffer = canvas.toBuffer('image/png');
+
+        // Кодируем имя файла для поддержки кириллицы
+        const safeName = name.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_');
+        const filename = `qr_${displayCode}_${safeName}.png`;
+
         res.setHeader('Content-Type', 'image/png');
-        res.setHeader('Content-Disposition', `attachment; filename=qr_${displayCode}_${name.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}.png`);
+        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
         res.send(buffer);
 
     } catch (error) {
