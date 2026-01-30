@@ -833,7 +833,13 @@ function showCheckpointModal(checkpoint = null) {
           }
 
           closeModal();
-          loadCheckpoints();
+          // Обновляем текущую активную страницу
+          const activePage = document.querySelector('.page-content.active')?.id;
+          if (activePage === 'realtime-page') {
+            loadRealtimeMap();
+          } else {
+            loadCheckpoints();
+          }
         } catch (error) {
           showNotification(error.message, 'error');
         }
