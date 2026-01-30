@@ -390,6 +390,7 @@ function renderRealtimeMap(checkpoints, patrols) {
   // Add checkpoints
   checkpoints.forEach(cp => {
     const marker = new ymaps.Placemark([cp.latitude, cp.longitude], {
+      iconCaption: cp.name,
       balloonContent: `
         <div style="min-width: 200px; padding: 5px; color: #1e293b;">
             <strong style="font-size: 1.1rem; display: block; margin-bottom: 5px;">${cp.name}</strong>
@@ -417,19 +418,8 @@ function renderRealtimeMap(checkpoints, patrols) {
         </div>
       `
     }, {
-      // Используем кастомный лейбл для названия точки
-      iconLayout: 'default#imageWithContent',
-      iconImageHref: '',
-      iconImageSize: [40, 40],
-      iconImageOffset: [-20, -20],
-      iconContentLayout: ymaps.templateLayoutFactory.createClass(
-        `<div style="display: flex; flex-direction: column; align-items: center;">
-          <div style="width: 14px; height: 14px; background: ${cp.checkpoint_type === 'kpp' ? '#ef4444' : '#10b981'}; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 2px ${cp.checkpoint_type === 'kpp' ? '#ef444440' : '#10b98140'};"></div>
-          <div style="margin-top: 4px; background: rgba(255,255,255,0.95); color: #1e293b; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; border: 1px solid #cbd5e1; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            ${cp.name}
-          </div>
-        </div>`
-      )
+      preset: cp.checkpoint_type === 'kpp' ? 'islands#redDotIconWithCaption' : 'islands#greenDotIconWithCaption',
+      iconCaptionMaxWidth: 120
     });
 
     realtimeMap.geoObjects.add(marker);
@@ -711,14 +701,8 @@ async function loadCheckpoints() {
 
 function renderCheckpointsGrid(checkpoints) {
   const grid = document.getElementById('checkpointsGrid');
-
-  if (checkpoints.length === 0) {
-    grid.innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-muted);">
-        <div style="font-size: 3rem; margin-bottom: 1rem;">📍</div>
-        <div>Нет контрольных точек</div>
-      </div>
-    `;
+  if (!checkpoints || checkpoints.length === 0) {
+    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-muted);"><div style="font-size: 3rem; margin-bottom: 1rem;">📍</div><div>Нет контрольных точек</div></div>';
     return;
   }
 
