@@ -366,7 +366,7 @@ function renderRealtimeMap(checkpoints, patrols) {
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px;">
                 <button class="btn btn-primary" onclick="window.open('/print-qr.html?id=${cp.id}&token=${authToken}', '_blank')" style="font-size: 0.85rem; padding: 8px;">
-                    📄 ПФД
+                    📄 PDF
                 </button>
                 <button class="btn btn-secondary" onclick="editCheckpoint(${cp.id})" style="font-size: 0.85rem; padding: 8px;">
                     ✏️ Изменить
@@ -413,7 +413,7 @@ function renderRealtimeMap(checkpoints, patrols) {
           `<div style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
             <div style="font-size: 28px;">👮</div>
             <div style="background: rgba(15, 23, 42, 0.8); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap;">
-                ${new Date(patrol.recorded_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                ${new Date(patrol.recorded_at).toLocaleString('ru-RU', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
             </div>
            </div>`
         )
