@@ -5,12 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Печать QR-кода</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #00B14C;
             --text: #1e293b;
             --muted: #64748b;
+        }
+
+        @page {
+            size: portrait;
+            margin: 0;
         }
 
         body {
@@ -39,40 +44,29 @@
         }
 
         .logo {
-            width: 120px;
+            width: 140px;
             height: auto;
-            margin-bottom: 20px;
-        }
-
-        .brand-name {
-            font-size: 48px;
-            font-weight: 800;
-            color: var(--primary);
-            margin: 0 0 40px 0;
-            letter-spacing: -1px;
+            margin-top: 20px;
+            margin-bottom: 60px;
         }
 
         .location-name {
-            font-size: 42px;
-            font-weight: 700;
-            margin: 0 0 10px 0;
+            font-size: 48px;
+            font-weight: 800;
+            margin: 0 0 40px 0;
             line-height: 1.2;
             max-width: 90%;
-        }
-
-        .checkpoint-type {
-            font-size: 24px;
-            color: var(--muted);
-            margin-bottom: 50px;
+            color: var(--text);
         }
 
         .qr-container {
-            width: 140mm;
-            height: 140mm;
+            width: 100mm;
+            /* Сделали меньше (было 140мм) */
+            height: 100mm;
             display: flex;
             justify-content: center;
             align-items: center;
-            margin-bottom: 40px;
+            margin-bottom: 60px;
         }
 
         .qr-image {
@@ -81,24 +75,17 @@
         }
 
         .short-code-label {
-            font-size: 20px;
+            font-size: 24px;
             color: var(--muted);
-            margin-bottom: 5px;
+            margin-bottom: 10px;
         }
 
         .short-code {
-            font-size: 96px;
+            font-size: 110px;
             font-weight: 800;
             margin: 0;
-            letter-spacing: 10px;
-        }
-
-        .footer-text {
-            position: absolute;
-            bottom: 30mm;
-            font-size: 18px;
-            color: var(--muted);
-            width: 100%;
+            letter-spacing: 12px;
+            color: var(--text);
         }
 
         @media print {
@@ -110,33 +97,25 @@
                 border: none;
                 margin: 0;
             }
-
-            @page {
-                margin: 0;
-            }
         }
     </style>
 </head>
 
 <body>
     <div class="a4-page">
-        <!-- SVG Логотип -->
-        <img src="/index.svg" alt="DI Security" class="logo" onerror="this.src='/index.svg'">
-        <div class="brand-name">DI SECURITY</div>
+        <!-- Логотип -->
+        <img src="/index.svg" alt="Logo" class="logo">
 
+        <!-- Название (без DI SECURITY и Типа) -->
         <div class="location-name" id="name">...</div>
-        <div class="checkpoint-type" id="type">...</div>
 
+        <!-- Уменьшенный QR -->
         <div class="qr-container">
             <img id="qr" src="" alt="QR Code" class="qr-image">
         </div>
 
         <div class="short-code-label">Код для ручного ввода</div>
         <div class="short-code" id="code">0000</div>
-
-        <div class="footer-text">
-            Наведите камеру на QR-код или используйте код для ручного ввода
-        </div>
     </div>
 
     <script>
@@ -152,7 +131,6 @@
                 const data = await response.json();
 
                 document.getElementById('name').textContent = data.name;
-                document.getElementById('type').textContent = 'Тип: ' + data.type;
                 document.getElementById('qr').src = data.qrCode;
                 document.getElementById('code').textContent = data.shortCode;
 
@@ -168,8 +146,6 @@
 
         if (id && token) {
             loadData();
-        } else {
-            alert('Нет ID или токена');
         }
     </script>
 </body>
