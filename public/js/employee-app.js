@@ -32,13 +32,7 @@ function unlockAudio() {
 document.addEventListener('click', unlockAudio);
 document.addEventListener('touchstart', unlockAudio);
 
-// Radio (Walkie-Talkie) State
-let socket = null;
-let mediaRecorder = null;
-let audioChunks = [];
-let audioQueue = [];
-let isPlaying = false;
-let currentChannel = 'general';
+
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -61,24 +55,7 @@ function setupEventListeners() {
     document.getElementById('close-scanner').addEventListener('click', closeQRScanner);
     document.getElementById('manual-qr-submit').addEventListener('click', submitManualQR);
 
-    // Radio events
-    const pttButton = document.getElementById('ptt-button');
-    if (pttButton) {
-        pttButton.addEventListener('mousedown', startTransmission);
-        pttButton.addEventListener('mouseup', stopTransmission);
-        pttButton.addEventListener('mouseleave', stopTransmission); // Если мышка ушла с кнопки
 
-        pttButton.addEventListener('touchstart', (e) => { e.preventDefault(); startTransmission(); });
-        pttButton.addEventListener('touchend', (e) => { e.preventDefault(); stopTransmission(); });
-        pttButton.addEventListener('touchcancel', (e) => { e.preventDefault(); stopTransmission(); }); // Если палец ушел
-    }
-
-    const channelSelect = document.getElementById('radio-channel');
-    if (channelSelect) {
-        channelSelect.addEventListener('change', (e) => {
-            switchChannel(e.target.value);
-        });
-    }
 }
 
 // ... existing code ...
@@ -158,10 +135,7 @@ function handleLogout() {
         authToken = null;
         currentUser = null;
 
-        if (socket) {
-            socket.disconnect();
-            socket = null;
-        }
+
 
         showScreen('login-screen');
         document.getElementById('login-form').reset();
@@ -213,8 +187,7 @@ async function initializeMainScreen() {
     // Start realtime updates
     startRealtimeUpdates();
 
-    // Init Radio
-    initRadio();
+
 }
 
 async function checkActiveSession() {
@@ -242,159 +215,7 @@ async function checkActiveSession() {
     }
 }
 
-// Radio Functionality
-function initRadio() {
-    if (typeof io === 'undefined') {
-        console.log('Socket.io library not loaded yet...');
-        return;
-    }
 
-    socket = io();
-
-    socket.on('connect', () => {
-        document.getElementById('radio-online-status').classList.add('online');
-        document.getElementById('radio-status-text').textContent = 'Онлайн';
-        document.getElementById('ptt-button').disabled = false;
-
-        // Join initial channel
-        switchChannel(currentChannel);
-    });
-
-    socket.on('disconnect', () => {
-        document.getElementById('radio-online-status').classList.remove('online');
-        document.getElementById('radio-status-text').textContent = 'Оффлайн';
-        document.getElementById('ptt-button').disabled = true;
-    });
-
-    socket.on('ptt-active', (data) => {
-        const incomingEl = document.getElementById('radio-incoming');
-        const idleEl = document.getElementById('radio-idle');
-        const senderNameEl = document.getElementById('radio-sender-name');
-
-        if (data.active) {
-            incomingEl.style.display = 'flex';
-            idleEl.style.display = 'none';
-            senderNameEl.textContent = data.senderName;
-        } else {
-            incomingEl.style.display = 'none';
-            idleEl.style.display = 'block';
-        }
-    });
-
-    socket.on('audio-broadcast', (data) => {
-        // Play incoming audio chunk
-        playAudioBuffer(data.chunk);
-    });
-
-    // Request Mic access early
-    navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-            console.log('🎤 Микрофон доступен');
-        })
-        .catch(err => {
-            console.error('Mic access denied:', err);
-            showNotification('Доступ к микрофону запрещен. Рация не будет работать.', 'error');
-        });
-}
-
-function switchChannel(channelId) {
-    currentChannel = channelId;
-    if (socket) {
-        socket.emit('join-channel', channelId);
-    }
-}
-
-async function startTransmission() {
-    if (!socket || !socket.connected) {
-        showNotification('Нет соединения с сервером рации', 'error');
-        return;
-    }
-
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-        // Для iPhone/Safari и Android используем более универсальные форматы
-        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-            ? 'audio/webm;codecs=opus'
-            : 'audio/mp4';
-
-        const startRecording = () => {
-            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
-                mediaRecorder = new MediaRecorder(stream, { mimeType });
-
-                mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                            socket.emit('audio-chunk', {
-                                channelId: currentChannel,
-                                chunk: reader.result,
-                                senderName: currentUser.full_name
-                            });
-                        };
-                        reader.readAsDataURL(event.data);
-                    }
-                };
-
-                mediaRecorder.start();
-            }
-        };
-
-        document.getElementById('ptt-button').classList.add('recording');
-        socket.emit('ptt-start', { channelId: currentChannel, senderName: currentUser.full_name });
-
-        // Запускаем цикл записи коротких самостоятельных файлов
-        startRecording();
-        window.pttInterval = setInterval(() => {
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-                // Начинаем заново после остановки
-                setTimeout(startRecording, 10);
-            }
-        }, 1500);
-
-    } catch (err) {
-        console.error('Failed to start recording:', err);
-        showNotification('Ошибка микрофона: ' + err.message, 'error');
-    }
-}
-
-function stopTransmission() {
-    if (window.pttInterval) {
-        clearInterval(window.pttInterval);
-        window.pttInterval = null;
-    }
-
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
-    }
-
-    document.getElementById('ptt-button').classList.remove('recording');
-    if (socket) {
-        socket.emit('ptt-stop', { channelId: currentChannel });
-    }
-}
-
-function playAudioBuffer(base64Data) {
-    if (!audioUnlocked) {
-        // Если звук еще не разблокирован, просто пишем в консоль один раз
-        if (!window.audioWarned) {
-            console.warn('Playback blocked: Waiting for user interaction');
-            window.audioWarned = true;
-        }
-        return;
-    }
-
-    try {
-        const audio = new Audio(base64Data);
-        audio.play().catch(e => {
-            // Игнорируем ошибки автоплея, если они все еще есть
-        });
-    } catch (e) {
-        console.error('Audio play error:', e);
-    }
-}
 
 function getRoleLabel(role) {
     const labels = {

@@ -16,65 +16,14 @@ import gpsRoutes from './routes/gps.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-import { createServer } from 'http';
-import { Server } from 'socket.io';
 
 dotenv.config();
 
 const app = express();
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    }
-});
-
 const PORT = process.env.PORT || 3000;
 
-// Socket.io Walkie-Talkie Logic
-io.on('connection', (socket) => {
-    console.log('📱 Новое подключение по Socket.io:', socket.id);
 
-    // Присоединение к голосовому каналу
-    socket.on('join-channel', (channelId) => {
-        // Уходим из всех предыдущих комнат кроме своей личной
-        const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
-        rooms.forEach(r => socket.leave(r));
 
-        socket.join(channelId);
-        console.log(`👤 Пользователь ${socket.id} вошел в канал: ${channelId}`);
-    });
-
-    // Трансляция аудио чанка всем в комнате кроме отправителя
-    socket.on('audio-chunk', (data) => {
-        // data.channelId, data.chunk, data.senderName
-        console.log(`🎤 Аудио чанк от ${data.senderName} (${data.chunk.length} байт) в канал ${data.channelId}`);
-        socket.to(data.channelId).emit('audio-broadcast', {
-            chunk: data.chunk,
-            senderName: data.senderName,
-            senderId: socket.id
-        });
-    });
-
-    // Уведомление о начале/конце передачи (для индикации в UI)
-    socket.on('ptt-start', (data) => {
-        socket.to(data.channelId).emit('ptt-active', {
-            senderName: data.senderName,
-            active: true
-        });
-    });
-
-    socket.on('ptt-stop', (data) => {
-        socket.to(data.channelId).emit('ptt-active', {
-            active: false
-        });
-    });
-
-    socket.on('disconnect', () => {
-        console.log('❌ Пользователь отключился:', socket.id);
-    });
-});
 
 // Middleware
 app.use(cors());
@@ -125,13 +74,12 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-httpServer.listen(PORT, () => {
+app.listen(PORT, () => {
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║  🛡️  Система Мониторинга Охраны и Патрулирования        ║
 ║                                                           ║
 ║  ✅ Сервер запущен на порту: ${PORT}                         ║
-║  📡 WebSocket (Walkie-Talkie) активен                     ║
 ║  🌐 URL: http://localhost:${PORT}                          ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
