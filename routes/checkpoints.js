@@ -24,6 +24,7 @@ async function generateShortCode() {
         const code = Math.floor(1000 + Math.random() * 9000).toString();
         const existing = await pool.query('SELECT id FROM checkpoints WHERE short_code = $1', [code]);
         if (existing.rows.length === 0) {
+            console.log(`✅ Generated unique short_code: ${code}`);
             return code;
         }
         attempts++;
@@ -119,33 +120,58 @@ router.get('/:id/qrcode', authenticateToken, async (req, res) => {
 
 // ГЕНЕРАЦИЯ PDF ДЛЯ ПЕЧАТИ
 router.get('/:id/qrcode/print', authenticateToken, async (req, res) => {
+    let doc;
     try {
         const { id } = req.params;
+        console.log(`📄 Starting PDF generation for checkpoint ID: ${id}`);
+
         const result = await pool.query('SELECT qr_code_data, short_code, name, checkpoint_type FROM checkpoints WHERE id = $1', [id]);
-        if (result.rows.length === 0) return res.status(404).json({ error: 'Не найдена' });
+        if (result.rows.length === 0) {
+            console.warn('⚠️ Checkpoint not found');
+            return res.status(404).json({ error: 'Не найдена' });
+        }
 
         const { qr_code_data, short_code, name, checkpoint_type } = result.rows[0];
         const displayCode = short_code || qr_code_data.slice(-4);
 
         // Создаем PDF документ
-        const doc = new PDFDocument({
+        doc = new PDFDocument({
             size: 'A4',
-            margin: 50
+            margin: 50,
+            bufferPages: true
         });
 
         // Настраиваем Response
-        const filename = encodeURIComponent(`QR_${displayCode}_${name.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}.pdf`);
+        const safeName = name.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_');
+        const filename = `QR_${displayCode}_${safeName}.pdf`;
+
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${filename}`);
+        res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+
+        // Обработка ошибок потока
+        doc.on('error', (err) => {
+            console.error('❌ PDFKit stream error:', err);
+            if (!res.headersSent) {
+                res.status(500).send('Ошибка при создании PDF');
+            }
+        });
 
         doc.pipe(res);
 
         // Проверяем наличие шрифтов
-        const hasBold = fs.existsSync(ROBOTO_BOLD);
-        const hasRegular = fs.existsSync(ROBOTO_REGULAR);
+        const hasBold = fs.existsSync(ROBOTO_BOLD) && fs.statSync(ROBOTO_BOLD).size > 1000;
+        const hasRegular = fs.existsSync(ROBOTO_REGULAR) && fs.statSync(ROBOTO_REGULAR).size > 1000;
+
+        console.log(`🔍 Fonts check: Bold=${hasBold}, Regular=${hasRegular}`);
 
         // Логотип (текст)
-        if (hasBold) doc.font(ROBOTO_BOLD);
+        if (hasBold) {
+            doc.font(ROBOTO_BOLD);
+        } else {
+            console.warn('⚠️ Using fallback font for Bold text');
+            doc.font('Helvetica-Bold');
+        }
+
         doc.fillColor('#00B14C')
             .fontSize(42)
             .text('DI SECURITY', { align: 'center' });
@@ -154,7 +180,6 @@ router.get('/:id/qrcode/print', authenticateToken, async (req, res) => {
 
         // Название локации
         doc.fillColor('#1e293b');
-        if (hasBold) doc.font(ROBOTO_BOLD);
         doc.fontSize(36)
             .text(name, { align: 'center', width: 500 });
 
@@ -162,26 +187,28 @@ router.get('/:id/qrcode/print', authenticateToken, async (req, res) => {
 
         // Тип точки
         doc.fillColor('#64748b');
-        if (hasRegular) doc.font(ROBOTO_REGULAR);
+        if (hasRegular) {
+            doc.font(ROBOTO_REGULAR);
+        } else {
+            doc.font('Helvetica');
+        }
+
         doc.fontSize(22)
             .text(`Тип: ${checkpoint_type === 'kpp' ? 'КПП' : 'Патруль'}`, { align: 'center' });
 
         doc.moveDown(2);
 
-        // QR код (генерируем буфер PNG)
+        // QR код
         const qrBuffer = await QRCode.toBuffer(qr_code_data, {
             errorCorrectionLevel: 'H',
             margin: 1,
-            width: 800 // Высокое разрешение для PDF
+            width: 600
         });
 
-        doc.image(qrBuffer, {
-            fit: [300, 300],
-            align: 'center',
-            valign: 'center'
-        });
+        const qrX = (doc.page.width - 300) / 2;
+        doc.image(qrBuffer, qrX, doc.y, { width: 300 });
 
-        doc.moveDown(8); // Отступ вниз от QR
+        doc.moveDown(2);
 
         // 4-значный код
         doc.fillColor('#1e293b');
@@ -197,13 +224,17 @@ router.get('/:id/qrcode/print', authenticateToken, async (req, res) => {
 
         // Футер
         doc.fontSize(16)
-            .text('Наведите камеру на QR код или введите код вручную', 50, doc.page.height - 100, { align: 'center' });
+            .text('Наведите камеру на QR код или введите код вручную', 50, doc.page.height - 80, { align: 'center' });
 
         doc.end();
+        console.log('✅ PDF Generation finished successfully');
 
     } catch (error) {
-        console.error('PDF Generation Error:', error);
-        res.status(500).send('Ошибка генерации PDF');
+        console.error('❌ PDF Generation Fatal Error:', error);
+        if (doc) doc.end();
+        if (!res.headersSent) {
+            res.status(500).send('Ошибка генерации PDF: ' + error.message);
+        }
     }
 });
 
