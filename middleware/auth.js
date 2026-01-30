@@ -6,7 +6,8 @@ dotenv.config();
 // Middleware для проверки JWT токена
 export const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    // Ищем токен в Authorization header или в query параметрах
+    const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
 
     if (!token) {
         return res.status(401).json({ error: 'Требуется аутентификация' });

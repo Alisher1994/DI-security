@@ -82,9 +82,9 @@ router.post('/scan', [
     try {
         await client.query('BEGIN');
 
-        // Поиск контрольной точки по QR коду
+        // Поиск контрольной точки по QR коду или short_code
         const checkpointResult = await client.query(
-            'SELECT * FROM checkpoints WHERE qr_code_data = $1 AND is_active = true',
+            'SELECT * FROM checkpoints WHERE (qr_code_data = $1 OR short_code = $1) AND is_active = true',
             [qr_code_data]
         );
 

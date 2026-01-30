@@ -471,7 +471,12 @@ async function submitManualQR() {
     const qrCode = document.getElementById('manual-qr-input').value.trim();
 
     if (!qrCode) {
-        showNotification('Введите QR-код', 'error');
+        showNotification('Введите 4-значный код', 'error');
+        return;
+    }
+
+    if (!/^\d{4}$/.test(qrCode) && qrCode.length < 5) {
+        showNotification('Код должен состоять из 4 цифр', 'error');
         return;
     }
 
@@ -523,9 +528,14 @@ async function processQRScan(qrCode) {
                     </div>
                 </div>
             `;
-            resultEl.className = 'scan-result success';
-
             showNotification('Отметка успешно сохранена', 'success');
+
+            // Если было открыто модальное окно (ручной ввод), закрываем его
+            if (document.getElementById('qr-scanner-modal').classList.contains('active')) {
+                setTimeout(() => {
+                    closeQRScanner();
+                }, 1500);
+            }
 
             // Перезагружаем историю через 3 секунды и очищаем результат
             setTimeout(() => {

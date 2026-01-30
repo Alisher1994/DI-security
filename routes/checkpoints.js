@@ -3,14 +3,36 @@ import QRCode from 'qrcode';
 import { body, validationResult } from 'express-validator';
 import pool from '../config/db.js';
 import { authenticateToken, authorizeRole } from '../middleware/auth.js';
+import { createCanvas, loadImage } from 'canvas';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
+
+// Генерация уникального 4-значного кода
+async function generateShortCode() {
+    let attempts = 0;
+    while (attempts < 100) {
+        const code = Math.floor(1000 + Math.random() * 9000).toString();
+        const existing = await pool.query('SELECT id FROM checkpoints WHERE short_code = $1', [code]);
+        if (existing.rows.length === 0) {
+            return code;
+        }
+        attempts++;
+    }
+    // Если не удалось найти уникальный, генерируем более длинный
+    return Math.floor(10000 + Math.random() * 90000).toString();
+}
 
 // Получение всех контрольных точек
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT id, name, description, latitude, longitude, radius_meters, qr_code_data, checkpoint_type, is_active, created_at FROM checkpoints ORDER BY created_at DESC'
+            'SELECT id, name, description, latitude, longitude, radius_meters, qr_code_data, short_code, checkpoint_type, is_active, created_at FROM checkpoints ORDER BY created_at DESC'
         );
         res.json({ checkpoints: result.rows });
     } catch (error) {
@@ -57,12 +79,13 @@ router.post('/', [
     const { name, description, latitude, longitude, radius_meters, checkpoint_type } = req.body;
 
     try {
-        // Генерация уникального QR кода
-        const qrData = `CP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // Генерация уникального QR кода и short_code
+        const shortCode = await generateShortCode();
+        const qrData = shortCode; // Теперь QR содержит только short_code
 
         const result = await pool.query(
-            'INSERT INTO checkpoints (name, description, latitude, longitude, radius_meters, qr_code_data, checkpoint_type) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-            [name, description || '', latitude, longitude, radius_meters || 50, qrData, checkpoint_type]
+            'INSERT INTO checkpoints (name, description, latitude, longitude, radius_meters, qr_code_data, short_code, checkpoint_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            [name, description || '', latitude, longitude, radius_meters || 50, qrData, shortCode, checkpoint_type]
         );
 
         res.status(201).json({
@@ -164,12 +187,12 @@ router.delete('/:id', authenticateToken, authorizeRole('admin'), async (req, res
     }
 });
 
-// Генерация QR кода для контрольной точки
+// Генерация простого QR кода (для API)
 router.get('/:id/qrcode', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const result = await pool.query(
-            'SELECT qr_code_data, name FROM checkpoints WHERE id = $1',
+            'SELECT qr_code_data, short_code, name FROM checkpoints WHERE id = $1',
             [id]
         );
 
@@ -177,7 +200,7 @@ router.get('/:id/qrcode', authenticateToken, async (req, res) => {
             return res.status(404).json({ error: 'Контрольная точка не найдена' });
         }
 
-        const { qr_code_data, name } = result.rows[0];
+        const { qr_code_data, short_code, name } = result.rows[0];
 
         // Генерация QR кода в формате Data URL
         const qrCodeDataUrl = await QRCode.toDataURL(qr_code_data, {
@@ -191,11 +214,135 @@ router.get('/:id/qrcode', authenticateToken, async (req, res) => {
         res.json({
             qr_code: qrCodeDataUrl,
             name,
+            short_code: short_code || qr_code_data,
             qr_data: qr_code_data
         });
     } catch (error) {
         console.error('Ошибка при генерации QR кода:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Генерация QR кода для печати (книжный формат A4)
+router.get('/:id/qrcode/print', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            'SELECT qr_code_data, short_code, name, checkpoint_type FROM checkpoints WHERE id = $1',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Контрольная точка не найдена' });
+        }
+
+        const { qr_code_data, short_code, name, checkpoint_type } = result.rows[0];
+        const displayCode = short_code || qr_code_data.slice(-4);
+
+        // Размеры A4 в портретной ориентации (72 DPI для веба, масштабируем)
+        const width = 595;   // A4 width
+        const height = 842;  // A4 height
+
+        const canvas = createCanvas(width, height);
+        const ctx = canvas.getContext('2d');
+
+        // Белый фон
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+
+        // Загружаем логотип SVG (конвертируем в PNG через canvas нельзя напрямую)
+        // Используем текстовый логотип вместо SVG
+        const logoHeight = 80;
+        const logoY = 50;
+
+        // Рисуем текстовый логотип
+        ctx.fillStyle = '#00B14C';
+        ctx.font = 'bold 36px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('DI SECURITY', width / 2, logoY + 45);
+
+        // Название локации
+        ctx.fillStyle = '#1e293b';
+        ctx.font = 'bold 32px Arial, sans-serif';
+        ctx.textAlign = 'center';
+
+        // Разбиваем длинные названия на строки
+        const maxWidth = width - 80;
+        const words = name.split(' ');
+        let lines = [];
+        let currentLine = '';
+
+        for (const word of words) {
+            const testLine = currentLine ? currentLine + ' ' + word : word;
+            const metrics = ctx.measureText(testLine);
+            if (metrics.width > maxWidth && currentLine) {
+                lines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = testLine;
+            }
+        }
+        lines.push(currentLine);
+
+        const nameY = logoY + logoHeight + 60;
+        lines.forEach((line, i) => {
+            ctx.fillText(line, width / 2, nameY + i * 40);
+        });
+
+        // Тип точки
+        const typeY = nameY + lines.length * 40 + 20;
+        ctx.fillStyle = '#64748b';
+        ctx.font = '20px Arial, sans-serif';
+        const typeLabel = checkpoint_type === 'kpp' ? 'КПП' : 'Патруль';
+        ctx.fillText(`Тип: ${typeLabel}`, width / 2, typeY);
+
+        // QR код
+        const qrSize = 300;
+        const qrY = typeY + 50;
+        const qrX = (width - qrSize) / 2;
+
+        // Генерируем QR код
+        const qrBuffer = await QRCode.toBuffer(qr_code_data, {
+            errorCorrectionLevel: 'H',
+            type: 'png',
+            margin: 2,
+            width: qrSize,
+            color: {
+                dark: '#000000',
+                light: '#FFFFFF'
+            }
+        });
+
+        const qrImage = await loadImage(qrBuffer);
+        ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+
+        // 4-значный код
+        const codeY = qrY + qrSize + 60;
+        ctx.fillStyle = '#1e293b';
+        ctx.font = 'bold 72px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(displayCode, width / 2, codeY);
+
+        // Подпись под кодом
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '18px Arial, sans-serif';
+        ctx.fillText('Код для ручного ввода', width / 2, codeY + 35);
+
+        // Нижняя информация
+        const bottomY = height - 50;
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '14px Arial, sans-serif';
+        ctx.fillText('Наведите камеру на QR код или введите код вручную', width / 2, bottomY);
+
+        // Отправляем изображение
+        const buffer = canvas.toBuffer('image/png');
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Content-Disposition', `attachment; filename=qr_${displayCode}_${name.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}.png`);
+        res.send(buffer);
+
+    } catch (error) {
+        console.error('Ошибка при генерации QR кода для печати:', error);
+        res.status(500).json({ error: 'Ошибка генерации: ' + error.message });
     }
 });
 

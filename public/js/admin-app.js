@@ -559,6 +559,10 @@ function renderCheckpointsGrid(checkpoints) {
       <div class="card-body">
         <div class="card-info">
           <div class="card-info-item">
+            <span class="card-info-label">Код для ввода:</span>
+            <span style="font-weight: bold; color: var(--primary); font-size: 1.1rem;">${cp.short_code || '—'}</span>
+          </div>
+          <div class="card-info-item">
             <span class="card-info-label">Координаты:</span>
             <span>${parseFloat(cp.latitude).toFixed(6)}, ${parseFloat(cp.longitude).toFixed(6)}</span>
           </div>
@@ -569,7 +573,7 @@ function renderCheckpointsGrid(checkpoints) {
         </div>
       </div>
       <div class="card-actions">
-        <button class="btn btn-secondary btn-icon" onclick="viewQRCode(${cp.id})" title="Показать QR-код">📷</button>
+        <button class="btn btn-secondary btn-icon" onclick="viewQRCode(${cp.id})" title="QR-код и печать">📷</button>
         <button class="btn btn-secondary btn-icon" onclick="editCheckpoint(${cp.id})" title="Редактировать">✏️</button>
         <button class="btn btn-danger btn-icon" onclick="deleteCheckpoint(${cp.id})" title="Удалить">🗑️</button>
       </div>
@@ -585,13 +589,19 @@ async function viewQRCode(id) {
       title: `QR-код: ${data.name}`,
       content: `
         <div style="text-align: center; padding: 2rem;">
-          <img src="${data.qr_code}" alt="QR Code" style="max-width: 100%; height: auto; border-radius: 1rem;">
-          <div style="margin-top: 1rem; color: var(--text-muted); font-size: 0.875rem;">
-            ${data.qr_data}
+          <img src="${data.qr_code}" alt="QR Code" style="max-width: 250px; height: auto; border-radius: 1rem; border: 1px solid var(--border);">
+          <div style="margin-top: 1.5rem;">
+            <div style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Код для ручного ввода:</div>
+            <div style="font-size: 2.5rem; font-weight: bold; color: var(--text-primary); letter-spacing: 5px;">${data.short_code}</div>
           </div>
-          <button class="btn btn-primary" onclick="downloadQRCode('${data.qr_code}', '${data.name}')" style="margin-top: 1rem;">
-            Скачать QR-код
-          </button>
+          <div style="margin-top: 2rem; display: flex; flex-direction: column; gap: 0.75rem;">
+            <button class="btn btn-primary" onclick="window.open('/api/checkpoints/${id}/qrcode/print?token=${authToken}', '_blank')" style="width: 100%;">
+              🖨️ Скачать для печати (A4 PNG)
+            </button>
+            <button class="btn btn-secondary" onclick="downloadQRCode('${data.qr_code}', '${data.name}')" style="width: 100%;">
+              💾 Скачать только QR
+            </button>
+          </div>
         </div>
       `
     });

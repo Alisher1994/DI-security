@@ -15,7 +15,7 @@
     <div id="login-screen" class="screen active">
         <div class="login-container">
             <div class="logo">
-                <div class="shield-icon">🛡️</div>
+                <img src="/images/logo.svg" alt="DI Security Logo" style="width: 200px; margin-bottom: 1rem;">
                 <h1>Система Охраны</h1>
             </div>
             <form id="login-form" class="login-form">
@@ -143,9 +143,11 @@
             <div class="modal-body">
                 <div id="qr-reader"></div>
                 <div class="manual-input">
-                    <p>Или введите код вручную:</p>
-                    <input type="text" id="manual-qr-input" placeholder="Введите QR-код">
-                    <button id="manual-qr-submit" class="btn btn-secondary">Отправить</button>
+                    <p>Или введите 4-значный код локации:</p>
+                    <div class="manual-input-group">
+                        <input type="tel" id="manual-qr-input" placeholder="0000" maxlength="4" inputmode="numeric">
+                        <button id="manual-qr-submit" class="btn btn-secondary">Подтвердить</button>
+                    </div>
                 </div>
             </div>
         </div>
