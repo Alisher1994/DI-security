@@ -92,8 +92,7 @@ function setupNavigation() {
         'realtime': 'Карта Realtime',
         'scans': 'История сканирований',
         'checkpoints': 'Контрольные точки',
-        'employees': 'Сотрудники',
-        'tracks': 'История треков'
+        'employees': 'Сотрудники'
       };
       document.getElementById('page-title').textContent = titles[page];
 
@@ -114,9 +113,6 @@ function setupNavigation() {
         case 'employees':
           loadEmployees();
           break;
-        case 'tracks':
-          loadTracksPage();
-          break;
       }
     });
   });
@@ -130,7 +126,6 @@ function setupEventListeners() {
   document.getElementById('applyScanFilter').addEventListener('click', loadScans);
   document.getElementById('clearScanFilter').addEventListener('click', clearScanFilter);
   document.getElementById('exportScans').addEventListener('click', exportScansToCSV);
-  document.getElementById('viewTrack').addEventListener('click', loadSessions);
 
   // Excel import/export
   document.getElementById('exportEmployees').addEventListener('click', exportEmployeesToXLSX);
@@ -1502,127 +1497,3 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Track History Management
-let historyMap = null;
-
-async function loadTracksPage() {
-  if (!historyMap) {
-    ymaps.ready(() => {
-      historyMap = new ymaps.Map('history-map', {
-        center: [41.204358, 69.234420],
-        zoom: 14,
-        controls: ['zoomControl', 'fullscreenControl']
-      });
-    });
-  }
-
-  // Population of employees filter
-  const employees = await apiRequest('/employees?role=patrol');
-  const select = document.getElementById('trackFilterUser');
-
-  // Clear existing
-  select.innerHTML = '<option value="">Выберите патрульного</option>';
-  employees.employees.forEach(emp => {
-    const option = document.createElement('option');
-    option.value = emp.id;
-    option.textContent = emp.full_name;
-    select.appendChild(option);
-  });
-}
-
-async function loadSessions() {
-  const userId = document.getElementById('trackFilterUser').value;
-  const date = document.getElementById('trackFilterDate').value;
-
-  if (!userId) {
-    showNotification('Выберите сотрудника', 'error');
-    return;
-  }
-
-  let endpoint = `/gps/sessions?user_id=${userId}`;
-  if (date) endpoint += `&from_date=${date}T00:00:00&to_date=${date}T23:59:59`;
-
-  try {
-    const data = await apiRequest(endpoint);
-    renderSessionsTable(data.sessions);
-  } catch (error) {
-    console.error(error);
-    showNotification('Ошибка загрузки сессий', 'error');
-  }
-}
-
-function renderSessionsTable(sessions) {
-  const tbody = document.getElementById('sessionsTableBody');
-
-  if (sessions.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Нет сессий за указанный период</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = sessions.map(s => `
-        <tr>
-            <td>#${s.id}</td>
-            <td>${formatDateTime(s.session_start)}</td>
-            <td>${s.session_end ? formatDateTime(s.session_end) : 'Активна'}</td>
-            <td>${Math.round(s.total_distance_meters || 0)} м</td>
-            <td>${s.scan_count}</td>
-            <td>
-                <button class="btn btn-primary btn-icon" onclick="viewSessionTrack(${s.id}, ${s.user_id})" title="Просмотр пути">🛣️</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-async function viewSessionTrack(sessionId, userId) {
-  try {
-    const data = await apiRequest(`/gps/tracks?session_id=${sessionId}&user_id=${userId}&limit=5000`);
-
-    if (data.tracks.length === 0) {
-      showNotification('Нет данных GPS для этой сессии', 'warning');
-      return;
-    }
-
-    // Sorting by time
-    const sortedTracks = data.tracks.sort((a, b) => new Date(a.recorded_at) - new Date(b.recorded_at));
-
-    // Clearing map
-    historyMap.geoObjects.removeAll();
-
-    // Creating path
-    const coords = sortedTracks.map(t => [t.latitude, t.longitude]);
-
-    const pathLine = new ymaps.Polyline(coords, {
-      balloonContent: "Путь патруля"
-    }, {
-      strokeColor: "#3b82f6",
-      strokeWidth: 4,
-      strokeOpacity: 0.8
-    });
-
-    historyMap.geoObjects.add(pathLine);
-
-    // Adding start marker
-    const startMarker = new ymaps.Placemark(coords[0], {
-      balloonContent: "Начало пути"
-    }, { preset: 'islands#greenCircleDotIcon' });
-
-    // Adding end marker
-    const endMarker = new ymaps.Placemark(coords[coords.length - 1], {
-      balloonContent: "Конец пути"
-    }, { preset: 'islands#redCircleDotIcon' });
-
-    historyMap.geoObjects.add(startMarker);
-    historyMap.geoObjects.add(endMarker);
-
-    // Centering map
-    historyMap.setBounds(pathLine.geometry.getBounds());
-
-    showNotification('Путь отображен на карте', 'success');
-
-    // Scroll to map
-    document.getElementById('history-map').scrollIntoView({ behavior: 'smooth' });
-  } catch (error) {
-    console.error(error);
-    showNotification('Ошибка загрузки трека', 'error');
-  }
-}
