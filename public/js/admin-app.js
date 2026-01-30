@@ -357,8 +357,8 @@ async function loadRealtimeMap() {
 function initializeRealtimeMap() {
   ymaps.ready(() => {
     realtimeMap = new ymaps.Map('realtime-map', {
-      center: [55.751244, 37.618423],
-      zoom: 14,
+      center: [41.2995, 69.2401],
+      zoom: 12,
       controls: ['zoomControl', 'fullscreenControl']
     });
   });
@@ -715,11 +715,11 @@ function showCheckpointModal(checkpoint = null) {
         <div class="form-row">
           <div class="form-group">
             <label>Широта</label>
-            <input type="number" step="0.000001" name="latitude" id="modal-lat" class="input-field" value="${isEdit ? checkpoint.latitude : '55.751244'}" required>
+            <input type="number" step="0.000001" name="latitude" id="modal-lat" class="input-field" value="${isEdit ? checkpoint.latitude : '41.2995'}" required>
           </div>
           <div class="form-group">
             <label>Долгота</label>
-            <input type="number" step="0.000001" name="longitude" id="modal-lng" class="input-field" value="${isEdit ? checkpoint.longitude : '37.618423'}" required>
+            <input type="number" step="0.000001" name="longitude" id="modal-lng" class="input-field" value="${isEdit ? checkpoint.longitude : '69.2401'}" required>
           </div>
         </div>
         <div class="form-group">
@@ -735,8 +735,8 @@ function showCheckpointModal(checkpoint = null) {
     onLoad: () => {
       // Initialize map inside timeout to ensure container is ready
       setTimeout(() => {
-        const initialLat = parseFloat(isEdit ? checkpoint.latitude : 55.751244);
-        const initialLng = parseFloat(isEdit ? checkpoint.longitude : 37.618423);
+        const initialLat = parseFloat(isEdit ? checkpoint.latitude : 41.2995);
+        const initialLng = parseFloat(isEdit ? checkpoint.longitude : 69.2401);
 
         ymaps.ready(() => {
           const mContainer = document.getElementById('modal-map');
@@ -1495,8 +1495,8 @@ async function loadTracksPage() {
   if (!historyMap) {
     ymaps.ready(() => {
       historyMap = new ymaps.Map('history-map', {
-        center: [55.751244, 37.618423],
-        zoom: 14,
+        center: [41.2995, 69.2401],
+        zoom: 12,
         controls: ['zoomControl', 'fullscreenControl']
       });
     });
