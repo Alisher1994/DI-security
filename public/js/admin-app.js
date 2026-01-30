@@ -93,7 +93,6 @@ function setupNavigation() {
         'scans': 'История сканирований',
         'checkpoints': 'Контрольные точки',
         'employees': 'Сотрудники',
-        'shifts': 'Смены',
         'tracks': 'История треков'
       };
       document.getElementById('page-title').textContent = titles[page];
@@ -115,9 +114,6 @@ function setupNavigation() {
         case 'employees':
           loadEmployees();
           break;
-        case 'shifts':
-          loadShifts();
-          break;
         case 'tracks':
           loadTracksPage();
           break;
@@ -131,7 +127,6 @@ function setupEventListeners() {
   document.getElementById('refresh-map').addEventListener('click', loadRealtimeMap);
   document.getElementById('addCheckpoint').addEventListener('click', () => showCheckpointModal());
   document.getElementById('addEmployee').addEventListener('click', () => showEmployeeModal());
-  document.getElementById('addShift').addEventListener('click', () => showShiftModal());
   document.getElementById('applyScanFilter').addEventListener('click', loadScans);
   document.getElementById('clearScanFilter').addEventListener('click', clearScanFilter);
   document.getElementById('viewTrack').addEventListener('click', loadSessions);
