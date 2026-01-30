@@ -26,8 +26,10 @@
     "express-validator": "^7.0.1",
     "geolib": "^3.3.4",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
     "pg": "^8.11.3",
-    "qrcode": "^1.5.3"
+    "qrcode": "^1.5.3",
+    "xlsx": "^0.18.5"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -130,6 +130,14 @@ function setupEventListeners() {
   document.getElementById('applyScanFilter').addEventListener('click', loadScans);
   document.getElementById('clearScanFilter').addEventListener('click', clearScanFilter);
   document.getElementById('viewTrack').addEventListener('click', loadSessions);
+
+  // Excel import/export
+  document.getElementById('exportEmployees').addEventListener('click', exportEmployeesToXLSX);
+  document.getElementById('downloadTemplate').addEventListener('click', downloadImportTemplate);
+  document.getElementById('importEmployeesBtn').addEventListener('click', () => {
+    document.getElementById('importFile').click();
+  });
+  document.getElementById('importFile').addEventListener('change', importEmployeesFromXLSX);
 }
 
 function handleLogout() {
@@ -919,6 +927,156 @@ async function deleteEmployee(id) {
   } catch (error) {
     showNotification(error.message, 'error');
   }
+}
+
+// Excel Export/Import Functions
+async function exportEmployeesToXLSX() {
+  try {
+    showNotification('Скачивание...', 'info');
+
+    const response = await fetch('/api/employees/export/xlsx', {
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Ошибка экспорта');
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `employees_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+
+    showNotification('Файл скачан', 'success');
+  } catch (error) {
+    showNotification('Ошибка экспорта: ' + error.message, 'error');
+  }
+}
+
+async function downloadImportTemplate() {
+  try {
+    const response = await fetch('/api/employees/import/template', {
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Ошибка скачивания шаблона');
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'import_template.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+
+    showNotification('Шаблон скачан', 'success');
+  } catch (error) {
+    showNotification('Ошибка: ' + error.message, 'error');
+  }
+}
+
+async function importEmployeesFromXLSX(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  try {
+    showNotification('Импорт данных...', 'info');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('/api/employees/import/xlsx', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: formData
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Ошибка импорта');
+    }
+
+    // Показываем результаты импорта
+    showImportResults(data);
+
+    // Обновляем список сотрудников
+    loadEmployees();
+
+  } catch (error) {
+    showNotification('Ошибка импорта: ' + error.message, 'error');
+  }
+
+  // Сбрасываем input
+  e.target.value = '';
+}
+
+function showImportResults(data) {
+  const successCount = data.results.success.length;
+  const errorCount = data.results.errors.length;
+
+  let content = `
+    <div class="import-results">
+      <div class="import-summary">
+        <div class="summary-item success">
+          <span class="count">${successCount}</span>
+          <span class="label">Успешно добавлено</span>
+        </div>
+        <div class="summary-item ${errorCount > 0 ? 'error' : ''}">
+          <span class="count">${errorCount}</span>
+          <span class="label">Ошибок</span>
+        </div>
+      </div>
+  `;
+
+  if (data.results.success.length > 0) {
+    content += `
+      <div class="results-section">
+        <h4>✅ Добавленные сотрудники:</h4>
+        <ul class="results-list success-list">
+          ${data.results.success.map(s => `<li>${s.name} (${s.phone})</li>`).join('')}
+        </ul>
+      </div>
+    `;
+  }
+
+  if (data.results.errors.length > 0) {
+    content += `
+      <div class="results-section">
+        <h4>❌ Ошибки:</h4>
+        <ul class="results-list error-list">
+          ${data.results.errors.map(e => `<li>Строка ${e.row}: ${e.error}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+  }
+
+  content += `
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary" onclick="closeModal()">Закрыть</button>
+      </div>
+    </div>
+  `;
+
+  showModal({
+    title: 'Результаты импорта',
+    content: content
+  });
 }
 
 // Shifts Management

@@ -204,6 +204,12 @@
             <div id="employees-page" class="page-content">
                 <div class="page-actions">
                     <button id="addEmployee" class="btn btn-success">+ Добавить сотрудника</button>
+                    <div class="action-group">
+                        <button id="exportEmployees" class="btn btn-primary">📥 Скачать XLSX</button>
+                        <button id="downloadTemplate" class="btn btn-secondary">📄 Шаблон импорта</button>
+                        <button id="importEmployeesBtn" class="btn btn-warning">📤 Импорт из XLSX</button>
+                        <input type="file" id="importFile" accept=".xlsx,.xls" style="display: none;">
+                    </div>
                 </div>
                 <div class="table-container">
                     <table class="data-table">

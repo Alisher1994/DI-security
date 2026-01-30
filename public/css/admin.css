@@ -348,6 +348,22 @@ body {
     font-size: 1.25rem;
 }
 
+.btn-warning {
+    background: linear-gradient(135deg, var(--warning), #d97706);
+    color: white;
+}
+
+.btn-warning:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(245, 158, 11, 0.3);
+}
+
+.action-group {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
 /* Forms */
 .input-field {
     width: 100%;
@@ -718,4 +734,81 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
+}
+
+/* Import Results Modal */
+.import-results {
+    max-width: 500px;
+}
+
+.import-summary {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--bg-tertiary);
+    border-radius: 0.75rem;
+}
+
+.summary-item {
+    text-align: center;
+}
+
+.summary-item .count {
+    display: block;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.summary-item.success .count {
+    color: var(--success);
+}
+
+.summary-item.error .count {
+    color: var(--danger);
+}
+
+.summary-item .label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.results-section {
+    margin-bottom: 1rem;
+}
+
+.results-section h4 {
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.results-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--bg-tertiary);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+}
+
+.results-list li {
+    padding: 0.375rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.875rem;
+}
+
+.results-list li:last-child {
+    border-bottom: none;
+}
+
+.success-list li {
+    color: var(--success);
+}
+
+.error-list li {
+    color: var(--danger);
 }

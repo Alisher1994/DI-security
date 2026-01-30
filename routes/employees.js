@@ -3,8 +3,24 @@ import bcrypt from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
 import pool from '../config/db.js';
 import { authenticateToken, authorizeRole } from '../middleware/auth.js';
+import multer from 'multer';
+import * as XLSX from 'xlsx';
 
 const router = express.Router();
+
+// Настройка multer для загрузки файлов в память
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+            file.mimetype === 'application/vnd.ms-excel') {
+            cb(null, true);
+        } else {
+            cb(new Error('Только Excel файлы (.xlsx, .xls)'), false);
+        }
+    }
+});
 
 // Получение списка всех сотрудников (только админ)
 router.get('/', authenticateToken, authorizeRole('admin'), async (req, res) => {
@@ -279,6 +295,212 @@ router.get('/:id/stats', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Ошибка при получении статистики:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Экспорт сотрудников в XLSX
+router.get('/export/xlsx', authenticateToken, authorizeRole('admin'), async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT id, phone, first_name, last_name, patronymic, full_name, role, created_at 
+            FROM users 
+            ORDER BY id
+        `);
+
+        // Подготовка данных для Excel
+        const data = result.rows.map(emp => ({
+            'ID': emp.id,
+            'Фамилия': emp.last_name,
+            'Имя': emp.first_name,
+            'Отчество': emp.patronymic || '',
+            'ФИО': emp.full_name,
+            'Телефон': emp.phone,
+            'Роль': emp.role === 'admin' ? 'Администратор' : emp.role === 'kpp' ? 'КПП' : 'Патруль',
+            'Дата создания': new Date(emp.created_at).toLocaleDateString('ru-RU')
+        }));
+
+        // Создание книги Excel
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Сотрудники');
+
+        // Настройка ширины столбцов
+        worksheet['!cols'] = [
+            { wch: 5 },  // ID
+            { wch: 15 }, // Фамилия
+            { wch: 15 }, // Имя
+            { wch: 15 }, // Отчество
+            { wch: 30 }, // ФИО
+            { wch: 18 }, // Телефон
+            { wch: 15 }, // Роль
+            { wch: 15 }  // Дата создания
+        ];
+
+        // Генерация буфера
+        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=employees_${new Date().toISOString().split('T')[0]}.xlsx`);
+        res.send(buffer);
+    } catch (error) {
+        console.error('Ошибка при экспорте сотрудников:', error);
+        res.status(500).json({ error: 'Ошибка экспорта' });
+    }
+});
+
+// Скачать шаблон для импорта
+router.get('/import/template', authenticateToken, authorizeRole('admin'), async (req, res) => {
+    try {
+        // Создаем шаблон с примером
+        const templateData = [
+            {
+                'Фамилия': 'Иванов',
+                'Имя': 'Иван',
+                'Отчество': 'Иванович',
+                'Телефон': '+998901234567',
+                'Роль (kpp/patrol/admin)': 'kpp',
+                'Пароль': 'password123'
+            },
+            {
+                'Фамилия': 'Петрова',
+                'Имя': 'Мария',
+                'Отчество': '',
+                'Телефон': '+998909876543',
+                'Роль (kpp/patrol/admin)': 'patrol',
+                'Пароль': 'securepass'
+            }
+        ];
+
+        const worksheet = XLSX.utils.json_to_sheet(templateData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Шаблон');
+
+        worksheet['!cols'] = [
+            { wch: 15 }, // Фамилия
+            { wch: 15 }, // Имя
+            { wch: 15 }, // Отчество
+            { wch: 18 }, // Телефон
+            { wch: 25 }, // Роль
+            { wch: 15 }  // Пароль
+        ];
+
+        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=import_template.xlsx');
+        res.send(buffer);
+    } catch (error) {
+        console.error('Ошибка при создании шаблона:', error);
+        res.status(500).json({ error: 'Ошибка создания шаблона' });
+    }
+});
+
+// Импорт сотрудников из XLSX
+router.post('/import/xlsx', authenticateToken, authorizeRole('admin'), upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Файл не загружен' });
+        }
+
+        // Читаем Excel файл
+        const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const data = XLSX.utils.sheet_to_json(worksheet);
+
+        if (data.length === 0) {
+            return res.status(400).json({ error: 'Файл пустой или некорректный формат' });
+        }
+
+        const results = {
+            success: [],
+            errors: []
+        };
+
+        for (let i = 0; i < data.length; i++) {
+            const row = data[i];
+            const rowNum = i + 2; // +2 потому что первая строка - заголовки, и нумерация с 1
+
+            try {
+                // Получаем данные из строки (поддержка разных вариантов названий колонок)
+                const lastName = row['Фамилия'] || row['last_name'] || row['LastName'];
+                const firstName = row['Имя'] || row['first_name'] || row['FirstName'];
+                const patronymic = row['Отчество'] || row['patronymic'] || row['Patronymic'] || '';
+                let phone = row['Телефон'] || row['phone'] || row['Phone'] || '';
+                const roleRaw = row['Роль (kpp/patrol/admin)'] || row['Роль'] || row['role'] || row['Role'] || '';
+                const password = row['Пароль'] || row['password'] || row['Password'] || '';
+
+                // Валидация
+                if (!lastName || !firstName) {
+                    results.errors.push({ row: rowNum, error: 'Фамилия и Имя обязательны' });
+                    continue;
+                }
+
+                if (!phone) {
+                    results.errors.push({ row: rowNum, error: 'Телефон обязателен' });
+                    continue;
+                }
+
+                // Нормализация телефона
+                phone = phone.toString().replace(/\s/g, '');
+                if (!phone.startsWith('+')) {
+                    phone = '+' + phone;
+                }
+                if (!phone.startsWith('+998')) {
+                    phone = '+998' + phone.replace(/^\+/, '');
+                }
+
+                // Определение роли
+                let role = roleRaw.toLowerCase().trim();
+                if (role === 'администратор') role = 'admin';
+                else if (role === 'кпп') role = 'kpp';
+                else if (role === 'патруль') role = 'patrol';
+
+                if (!['admin', 'kpp', 'patrol'].includes(role)) {
+                    results.errors.push({ row: rowNum, error: `Некорректная роль: ${roleRaw}. Допустимые: kpp, patrol, admin` });
+                    continue;
+                }
+
+                if (!password || password.length < 6) {
+                    results.errors.push({ row: rowNum, error: 'Пароль должен быть минимум 6 символов' });
+                    continue;
+                }
+
+                // Проверка существования пользователя
+                const existing = await pool.query('SELECT id FROM users WHERE phone = $1', [phone]);
+                if (existing.rows.length > 0) {
+                    results.errors.push({ row: rowNum, error: `Пользователь с телефоном ${phone} уже существует` });
+                    continue;
+                }
+
+                // Создаем пользователя
+                const passwordHash = await bcrypt.hash(password, 10);
+                const fullName = [lastName, firstName, patronymic].filter(Boolean).join(' ');
+
+                await pool.query(`
+                    INSERT INTO users (phone, password_hash, first_name, last_name, patronymic, full_name, role)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                `, [phone, passwordHash, firstName, lastName, patronymic || null, fullName, role]);
+
+                results.success.push({
+                    row: rowNum,
+                    name: fullName,
+                    phone: phone
+                });
+
+            } catch (rowError) {
+                results.errors.push({ row: rowNum, error: rowError.message });
+            }
+        }
+
+        res.json({
+            message: `Импорт завершен. Успешно: ${results.success.length}, Ошибок: ${results.errors.length}`,
+            results
+        });
+
+    } catch (error) {
+        console.error('Ошибка при импорте сотрудников:', error);
+        res.status(500).json({ error: 'Ошибка импорта: ' + error.message });
     }
 });
 
