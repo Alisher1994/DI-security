@@ -129,6 +129,7 @@ function setupEventListeners() {
   document.getElementById('addEmployee').addEventListener('click', () => showEmployeeModal());
   document.getElementById('applyScanFilter').addEventListener('click', loadScans);
   document.getElementById('clearScanFilter').addEventListener('click', clearScanFilter);
+  document.getElementById('exportScans').addEventListener('click', exportScansToCSV);
   document.getElementById('viewTrack').addEventListener('click', loadSessions);
 
   // Excel import/export
@@ -445,14 +446,25 @@ async function loadScans() {
     let endpoint = '/scans';
     const params = new URLSearchParams();
 
-    const fromDate = document.getElementById('scanFilterFrom').value;
-    const toDate = document.getElementById('scanFilterTo').value;
+    const filterFrom = document.getElementById('scanFilterFrom');
+    const filterTo = document.getElementById('scanFilterTo');
+
+    // По умолчанию ставим сегодня, если фильтры пустые
+    if (!filterFrom.value && !filterTo.value) {
+      const today = new Date().toISOString().split('T')[0];
+      filterFrom.value = today;
+      filterTo.value = today;
+      console.log('📅 Setting default filter to today:', today);
+    }
+
+    const fromDate = filterFrom.value;
+    const toDate = filterTo.value;
     const userId = document.getElementById('scanFilterUser').value;
 
     if (fromDate) params.append('from_date', fromDate + 'T00:00:00');
     if (toDate) params.append('to_date', toDate + 'T23:59:59');
     if (userId) params.append('user_id', userId);
-    params.append('limit', '100');
+    params.append('limit', '500'); // Увеличили лимит для истории
 
     const queryString = params.toString();
     if (queryString) {
@@ -519,6 +531,61 @@ function clearScanFilter() {
   document.getElementById('scanFilterTo').value = '';
   document.getElementById('scanFilterUser').value = '';
   loadScans();
+}
+
+async function exportScansToCSV() {
+  try {
+    showNotification('Подготовка данных...', 'info');
+
+    const fromDate = document.getElementById('scanFilterFrom').value;
+    const toDate = document.getElementById('scanFilterTo').value;
+    const userId = document.getElementById('scanFilterUser').value;
+
+    let endpoint = '/scans?limit=5000';
+    if (fromDate) endpoint += `&from_date=${fromDate}T00:00:00`;
+    if (toDate) endpoint += `&to_date=${toDate}T23:59:59`;
+    if (userId) endpoint += `&user_id=${userId}`;
+
+    const data = await apiRequest(endpoint);
+    const scans = data.scans;
+
+    if (scans.length === 0) {
+      showNotification('Нет данных для экспорта', 'warning');
+      return;
+    }
+
+    // Формируем CSV
+    const headers = ['ID', 'Дата/Время', 'Сотрудник', 'Контрольная точка', 'Тип', 'Расстояние (м)', 'Статус', 'Заметки'];
+    const rows = scans.map(s => [
+      s.id,
+      formatDateTime(s.scan_time),
+      s.user_name,
+      s.checkpoint_name,
+      s.checkpoint_type === 'kpp' ? 'КПП' : 'Патруль',
+      Math.round(s.distance_meters),
+      s.is_valid ? 'Валидно' : 'Невалидно',
+      (s.notes || '').replace(/,/g, ';')
+    ]);
+
+    const csvContent = "\uFEFF" + [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `scans_export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showNotification('CSV файл скачан', 'success');
+  } catch (error) {
+    console.error('Export failed:', error);
+    showNotification('Ошибка экспорта', 'error');
+  }
 }
 
 // Checkpoints Management
