@@ -120,6 +120,12 @@ function setupNavigation() {
 function setupEventListeners() {
   document.getElementById('logout-btn').addEventListener('click', handleLogout);
   document.getElementById('refresh-map').addEventListener('click', loadRealtimeMap);
+  document.getElementById('add-checkpoint-map').addEventListener('click', () => {
+    showNotification('Кликните на карту, чтобы выбрать место для новой точки', 'info');
+    // Мы можем просто открыть модалку, но лучше дать пользователю кликнуть на карте
+    // Для простоты пока просто открываем модалку, но с функционалом клика на самой карте Realtime позже.
+    showCheckpointModal();
+  });
   document.getElementById('addCheckpoint').addEventListener('click', () => showCheckpointModal());
   document.getElementById('addEmployee').addEventListener('click', () => showEmployeeModal());
   document.getElementById('applyScanFilter').addEventListener('click', loadScans);
@@ -323,7 +329,13 @@ function initializeRealtimeMap() {
     realtimeMap = new ymaps.Map('realtime-map', {
       center: [41.204358, 69.234420],
       zoom: 14,
-      controls: ['zoomControl', 'fullscreenControl']
+      controls: ['zoomControl', 'fullscreenControl', 'typeSelector']
+    });
+
+    // Клик по карте для добавления точки
+    realtimeMap.events.add('click', (e) => {
+      const coords = e.get('coords');
+      showCheckpointModal({ latitude: coords[0].toFixed(6), longitude: coords[1].toFixed(6), is_new_from_map: true });
     });
   });
 }
@@ -337,9 +349,25 @@ function renderRealtimeMap(checkpoints, patrols) {
   checkpoints.forEach(cp => {
     const marker = new ymaps.Placemark([cp.latitude, cp.longitude], {
       balloonContent: `
-        <strong>${cp.name}</strong><br>
-        <small>${cp.description || ''}</small><br>
-        <small>Тип: ${cp.checkpoint_type === 'kpp' ? 'КПП' : 'Патруль'}</small>
+        <div style="min-width: 200px; padding: 5px; color: #1e293b;">
+            <strong style="font-size: 1.1rem; display: block; margin-bottom: 5px;">${cp.name}</strong>
+            <div style="margin-bottom: 10px; color: #64748b; font-size: 0.85rem;">
+                ${cp.checkpoint_type === 'kpp' ? '🔴 КПП' : '🟢 Патруль'}<br>
+                ${cp.description || ''}
+            </div>
+            
+            <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.05); padding: 8px; border-radius: 6px; margin-bottom: 10px;">
+                <span style="font-size: 0.85rem;">Активность</span>
+                <label class="switch" style="transform: scale(0.8);">
+                    <input type="checkbox" ${cp.is_active ? 'checked' : ''} onchange="toggleCheckpointStatus(${cp.id}, this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <button class="btn btn-primary" onclick="window.open('/print-qr.html?id=${cp.id}&token=${authToken}', '_blank')" style="width: 100%; font-size: 0.85rem; padding: 8px; margin-top: 5px;">
+                📄 Скачать PDF
+            </button>
+        </div>
       `
     }, {
       preset: cp.checkpoint_type === 'kpp' ? 'islands#redDotIcon' : 'islands#greenDotIcon'
@@ -659,7 +687,8 @@ function downloadQRCode(dataUrl, name) {
 }
 
 function showCheckpointModal(checkpoint = null) {
-  const isEdit = checkpoint !== null;
+  const isEdit = checkpoint !== null && !checkpoint.is_new_from_map;
+  const isNewFromMap = checkpoint?.is_new_from_map;
 
   showModal({
     title: isEdit ? 'Редактировать точку' : 'Новая контрольная точка',
@@ -689,11 +718,11 @@ function showCheckpointModal(checkpoint = null) {
         <div class="form-row">
           <div class="form-group">
             <label>Широта</label>
-            <input type="number" step="0.000001" name="latitude" id="modal-lat" class="input-field" value="${isEdit ? checkpoint.latitude : '41.204358'}" required>
+            <input type="number" step="0.000001" name="latitude" id="modal-lat" class="input-field" value="${checkpoint ? checkpoint.latitude : '41.204358'}" required>
           </div>
           <div class="form-group">
             <label>Долгота</label>
-            <input type="number" step="0.000001" name="longitude" id="modal-lng" class="input-field" value="${isEdit ? checkpoint.longitude : '69.234420'}" required>
+            <input type="number" step="0.000001" name="longitude" id="modal-lng" class="input-field" value="${checkpoint ? checkpoint.longitude : '69.234420'}" required>
           </div>
         </div>
         <div class="form-group">
@@ -718,8 +747,8 @@ function showCheckpointModal(checkpoint = null) {
     onLoad: () => {
       // Initialize map inside timeout to ensure container is ready
       setTimeout(() => {
-        const initialLat = parseFloat(isEdit ? checkpoint.latitude : 41.204358);
-        const initialLng = parseFloat(isEdit ? checkpoint.longitude : 69.234420);
+        const initialLat = parseFloat(checkpoint ? checkpoint.latitude : 41.204358);
+        const initialLng = parseFloat(checkpoint ? checkpoint.longitude : 69.234420);
 
         ymaps.ready(() => {
           const mContainer = document.getElementById('modal-map');
