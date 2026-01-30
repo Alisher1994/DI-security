@@ -3,13 +3,20 @@ import QRCode from 'qrcode';
 import { body, validationResult } from 'express-validator';
 import pool from '../config/db.js';
 import { authenticateToken, authorizeRole } from '../middleware/auth.js';
-import { createCanvas, loadImage } from 'canvas';
+import { createCanvas, loadImage, registerFont } from 'canvas';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Регистрируем шрифты для поддержки кириллицы на Linux
+const fontsPath = path.join(__dirname, '../fonts');
+if (fs.existsSync(path.join(fontsPath, 'Roboto-Bold.ttf'))) {
+    registerFont(path.join(fontsPath, 'Roboto-Bold.ttf'), { family: 'Roboto', weight: 'bold' });
+    registerFont(path.join(fontsPath, 'Roboto-Regular.ttf'), { family: 'Roboto', weight: 'regular' });
+}
 
 const router = express.Router();
 
@@ -255,15 +262,15 @@ router.get('/:id/qrcode/print', authenticateToken, async (req, res) => {
         const logoHeight = 80;
         const logoY = 50;
 
-        // Рисуем текстовый логотип
+        // Рисуем текстовый логотип (пока нет PNG версии)
         ctx.fillStyle = '#00B14C';
-        ctx.font = 'bold 36px sans-serif';
+        ctx.font = 'bold 42px Roboto';
         ctx.textAlign = 'center';
         ctx.fillText('DI SECURITY', width / 2, logoY + 45);
 
         // Название локации
         ctx.fillStyle = '#1e293b';
-        ctx.font = 'bold 32px sans-serif';
+        ctx.font = 'bold 36px Roboto';
         ctx.textAlign = 'center';
 
         // Разбиваем длинные названия на строки
@@ -292,7 +299,7 @@ router.get('/:id/qrcode/print', authenticateToken, async (req, res) => {
         // Тип точки
         const typeY = nameY + lines.length * 40 + 20;
         ctx.fillStyle = '#64748b';
-        ctx.font = '20px Arial, sans-serif';
+        ctx.font = '22px Roboto';
         const typeLabel = checkpoint_type === 'kpp' ? 'КПП' : 'Патруль';
         ctx.fillText(`Тип: ${typeLabel}`, width / 2, typeY);
 
@@ -317,21 +324,21 @@ router.get('/:id/qrcode/print', authenticateToken, async (req, res) => {
         ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
 
         // 4-значный код
-        const codeY = qrY + qrSize + 60;
+        const codeY = qrY + qrSize + 65;
         ctx.fillStyle = '#1e293b';
-        ctx.font = 'bold 72px sans-serif';
+        ctx.font = 'bold 84px Roboto';
         ctx.textAlign = 'center';
         ctx.fillText(displayCode, width / 2, codeY);
 
         // Подпись под кодом
         ctx.fillStyle = '#94a3b8';
-        ctx.font = '18px sans-serif';
-        ctx.fillText('Код для ручного ввода', width / 2, codeY + 35);
+        ctx.font = '20px Roboto';
+        ctx.fillText('Код для ручного ввода', width / 2, codeY + 40);
 
         // Нижняя информация
         const bottomY = height - 50;
         ctx.fillStyle = '#94a3b8';
-        ctx.font = '14px sans-serif'; // Убираем Arial для совместимости с Linux
+        ctx.font = '16px Roboto';
         ctx.fillText('Наведите камеру на QR код или введите код вручную', width / 2, bottomY);
 
         // Отправляем изображение
