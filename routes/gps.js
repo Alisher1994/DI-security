@@ -150,60 +150,6 @@ router.post('/track', [
     }
 });
 
-// Получение GPS треков (для админа или своих)
-router.get('/tracks', authenticateToken, async (req, res) => {
-    try {
-        const { role, id: currentUserId } = req.user;
-        const { user_id, session_id, from_time, to_time, limit = 1000 } = req.query;
-
-        let query = `
-      SELECT 
-        g.id, g.latitude, g.longitude, g.accuracy, g.speed, g.recorded_at,
-        u.full_name as user_name, u.role as user_role,
-        ps.id as session_id, ps.session_start, ps.session_end
-      FROM gps_tracks g
-      JOIN users u ON g.user_id = u.id
-      LEFT JOIN patrol_sessions ps ON g.shift_id = ps.shift_id AND ps.user_id = u.id
-      WHERE 1=1
-    `;
-        const values = [];
-        let counter = 1;
-
-        // Если не админ, показываем только свои треки
-        if (role !== 'admin') {
-            query += ` AND g.user_id = $${counter++}`;
-            values.push(currentUserId);
-        } else if (user_id) {
-            query += ` AND g.user_id = $${counter++}`;
-            values.push(user_id);
-        }
-
-        if (session_id) {
-            query += ` AND ps.id = $${counter++}`;
-            values.push(session_id);
-        }
-
-        if (from_time) {
-            query += ` AND g.recorded_at >= $${counter++}`;
-            values.push(from_time);
-        }
-
-        if (to_time) {
-            query += ` AND g.recorded_at <= $${counter++}`;
-            values.push(to_time);
-        }
-
-        query += ` ORDER BY g.recorded_at DESC LIMIT $${counter}`;
-        values.push(limit);
-
-        const result = await pool.query(query, values);
-        res.json({ tracks: result.rows });
-    } catch (error) {
-        console.error('Ошибка при получении GPS треков:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
-    }
-});
-
 // Получение активных патрулей (real-time для админа)
 router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res) => {
     try {
@@ -223,58 +169,6 @@ router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res
         res.json({ active_patrols: result.rows });
     } catch (error) {
         console.error('Ошибка при получении активных патрулей:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
-    }
-});
-
-// Получение истории сессий патрулирования
-router.get('/sessions', authenticateToken, async (req, res) => {
-    try {
-        const { role, id: currentUserId } = req.user;
-        const { user_id, from_date, to_date } = req.query;
-
-        let query = `
-      SELECT 
-        ps.id, ps.session_start, ps.session_end, ps.is_active, ps.total_distance_meters,
-        u.id as user_id, u.full_name, u.role as user_role,
-        s.shift_date, s.shift_start as shift_time_start, s.shift_end as shift_time_end,
-        COUNT(sc.id) as scan_count
-      FROM patrol_sessions ps
-      JOIN users u ON ps.user_id = u.id
-      JOIN shifts s ON ps.shift_id = s.id
-      LEFT JOIN scans sc ON sc.user_id = ps.user_id AND sc.shift_id = ps.shift_id
-      WHERE 1=1
-    `;
-        const values = [];
-        let counter = 1;
-
-        if (role !== 'admin') {
-            query += ` AND ps.user_id = $${counter++}`;
-            values.push(currentUserId);
-        } else if (user_id) {
-            query += ` AND ps.user_id = $${counter++}`;
-            values.push(user_id);
-        }
-
-        if (from_date) {
-            query += ` AND s.shift_date >= $${counter++}`;
-            values.push(from_date);
-        }
-
-        if (to_date) {
-            query += ` AND s.shift_date <= $${counter++}`;
-            values.push(to_date);
-        }
-
-        query += ` 
-      GROUP BY ps.id, u.id, u.full_name, u.role, s.shift_date, s.shift_start, s.shift_end
-      ORDER BY ps.session_start DESC
-    `;
-
-        const result = await pool.query(query, values);
-        res.json({ sessions: result.rows });
-    } catch (error) {
-        console.error('Ошибка при получении сессий:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
