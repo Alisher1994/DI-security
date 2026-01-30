@@ -89,7 +89,7 @@ function setupNavigation() {
       const titles = {
         'dashboard': 'Дашборд',
         'realtime': 'Карта Realtime',
-        'scans': 'История сканирований',
+        'scans': 'История',
         'checkpoints': 'Контрольные точки',
         'employees': 'Сотрудники'
       };
@@ -332,7 +332,49 @@ function initializeRealtimeMap() {
       controls: ['zoomControl', 'fullscreenControl', 'typeSelector']
     });
 
-    // Клик по карте для добавления точки
+    // Правый клик для добавления точки
+    realtimeMap.events.add('contextmenu', (e) => {
+      const coords = e.get('coords');
+      const menuId = 'map-context-menu';
+      let menu = document.getElementById(menuId);
+
+      if (!menu) {
+        menu = document.createElement('div');
+        menu.id = menuId;
+        menu.style.cssText = `
+          position: fixed;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 8px;
+          z-index: 10000;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        `;
+        document.body.appendChild(menu);
+      }
+
+      menu.style.display = 'block';
+      menu.style.left = e.get('domEvent').get('pageX') + 'px';
+      menu.style.top = e.get('domEvent').get('pageY') + 'px';
+
+      menu.innerHTML = `
+        <button class="btn btn-success" style="width: 100%; white-space: nowrap; font-size: 0.875rem;" onclick="showCheckpointModal({ latitude: ${coords[0].toFixed(6)}, longitude: ${coords[1].toFixed(6)}, is_new_from_map: true }); document.getElementById('${menuId}').style.display = 'none';">
+          ➕ Добавить QR точку
+        </button>
+      `;
+
+      // Close menu on click elsewhere
+      const closeMenu = () => {
+        menu.style.display = 'none';
+        document.removeEventListener('click', closeMenu);
+      };
+      setTimeout(() => document.addEventListener('click', closeMenu), 10);
+
+      // Prevent browser default context menu
+      e.preventDefault();
+    });
+
+    // Клик по карте для добавления точки (сохраняем для удобства)
     realtimeMap.events.add('click', (e) => {
       const coords = e.get('coords');
       showCheckpointModal({ latitude: coords[0].toFixed(6), longitude: coords[1].toFixed(6), is_new_from_map: true });
@@ -407,13 +449,14 @@ function renderRealtimeMap(checkpoints, patrols) {
         // Используем эмодзи вместо стандартного значка
         iconLayout: 'default#imageWithContent',
         iconImageHref: '',
-        iconImageSize: [48, 48],
-        iconImageOffset: [-24, -40],
+        iconImageSize: [52, 52],
+        iconImageOffset: [-26, -45],
         iconContentLayout: ymaps.templateLayoutFactory.createClass(
           `<div style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-            <div style="font-size: 28px;">👮</div>
-            <div style="background: rgba(15, 23, 42, 0.8); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap;">
-                ${new Date(patrol.recorded_at).toLocaleString('ru-RU', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
+            <div style="font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">👮</div>
+            <div style="background: rgba(15, 23, 42, 0.9); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                <div style="font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 2px; padding-bottom: 1px;">${patrol.full_name.split(' ')[0]}</div>
+                <div>${new Date(patrol.recorded_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
            </div>`
         )
@@ -659,16 +702,16 @@ function renderCheckpointsGrid(checkpoints) {
 
   if (checkpoints.length === 0) {
     grid.innerHTML = `
-  < div style = "grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-muted);" >
+      <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-muted);">
         <div style="font-size: 3rem; margin-bottom: 1rem;">📍</div>
         <div>Нет контрольных точек</div>
-      </div >
-  `;
+      </div>
+    `;
     return;
   }
 
   grid.innerHTML = checkpoints.map(cp => `
-  < div class="checkpoint-card" >
+    <div class="checkpoint-card">
       <div class="card-header">
         <div>
           <div class="card-title">${cp.name}</div>
@@ -702,13 +745,13 @@ function renderCheckpointsGrid(checkpoints) {
         <button class="btn btn-secondary btn-icon" onclick="editCheckpoint(${cp.id})" title="Редактировать">✏️</button>
         <button class="btn btn-danger btn-icon" onclick="deleteCheckpoint(${cp.id})" title="Удалить">🗑️</button>
       </div>
-    </div >
+    </div>
   `).join('');
 }
 
 async function viewQRCode(id) {
   try {
-    const data = await apiRequest(`/ checkpoints / ${id}/qrcode`);
+    const data = await apiRequest(`/checkpoints/${id}/qrcode`);
 
     showModal({
       title: `QR-код: ${data.name}`,

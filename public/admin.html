@@ -31,7 +31,7 @@
                 </a>
                 <a href="#scans" class="nav-item" data-page="scans">
                     <span class="nav-icon">📋</span>
-                    <span class="nav-text">История сканирований</span>
+                    <span class="nav-text">История</span>
                 </a>
                 <a href="#checkpoints" class="nav-item" data-page="checkpoints">
                     <span class="nav-icon">📍</span>
@@ -168,6 +168,23 @@
                     </div>
                     <button id="exportScans" class="btn btn-primary">📥 Экспорт CSV</button>
                 </div>
+                <div id="scansSummarySection" style="margin-bottom: 2rem; display: none;">
+                    <h3 class="section-title">📊 Сводка по сотрудникам (группировка)</h3>
+                    <div class="table-container">
+                        <table class="data-table" style="box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+                            <thead>
+                                <tr>
+                                    <th>Сотрудник</th>
+                                    <th>Количество сканирований</th>
+                                    <th>Последняя активность</th>
+                                    <th>Контрольные точки</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scansSummaryTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div class="table-container">
                     <table class="data-table">
                         <thead>
@@ -182,23 +199,6 @@
                         </thead>
                         <tbody id="scansTableBody"></tbody>
                     </table>
-                </div>
-
-                <div id="scansSummarySection" style="margin-top: 2.5rem; display: none;">
-                    <h3 class="section-title">📊 Сводка по сотрудникам (группировка)</h3>
-                    <div class="table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Сотрудник</th>
-                                    <th>Количество сканирований</th>
-                                    <th>Последняя активность</th>
-                                    <th>Контрольные точки</th>
-                                </tr>
-                            </thead>
-                            <tbody id="scansSummaryTableBody"></tbody>
-                        </table>
-                    </div>
                 </div>
             </div>
 
