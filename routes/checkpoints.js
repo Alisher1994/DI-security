@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import { body, validationResult } from 'express-validator';
 import pool from '../config/db.js';
 import { authenticateToken, authorizeRole } from '../middleware/auth.js';
-import { createCanvas, loadImage, registerFont } from 'canvas';
+import PDFDocument from 'pdfkit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -11,46 +11,11 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// БЕЗОПАСНАЯ РЕГИСТРАЦИЯ ШРИФТОВ
-const fontsPath = path.join(__dirname, '../fonts');
-let hasRoboto = false;
-
-function safeRegisterFont(fileName, family, weight) {
-    try {
-        const fullPath = path.join(fontsPath, fileName);
-        if (fs.existsSync(fullPath)) {
-            const stats = fs.statSync(fullPath);
-            console.log(`📑 Checking font ${fileName}: ${stats.size} bytes`);
-
-            if (stats.size < 1000) {
-                console.warn(`⚠️ Font ${fileName} seems too small/corrupt`);
-                return false;
-            }
-
-            registerFont(fullPath, { family, weight });
-            console.log(`✅ Font ${family} (${weight}) registered successfully`);
-            return true;
-        } else {
-            console.warn(`⚠️ Font file not found: ${fullPath}`);
-        }
-    } catch (err) {
-        console.error(`❌ Non-critical error registering font ${family}:`, err.message);
-    }
-    return false;
-}
-
-// Пробуем зарегистрировать оба начертания
-const boldOk = safeRegisterFont('Roboto-Bold.ttf', 'Roboto', 'bold');
-const regOk = safeRegisterFont('Roboto-Regular.ttf', 'Roboto', 'regular');
-hasRoboto = boldOk || regOk;
-
 const router = express.Router();
 
-// Используем Roboto если загрузился, иначе стандартный санс-сериф
-const FONT_BOLD = hasRoboto ? 'bold 36px Roboto' : 'bold 36px sans-serif';
-const FONT_REGULAR = hasRoboto ? '16px Roboto' : '16px sans-serif';
-
-// ... (остальные функции остаются без изменений, но используют переменные FONT_*)
+const fontsPath = path.join(__dirname, '../fonts');
+const ROBOTO_BOLD = path.join(fontsPath, 'Roboto-Bold.ttf');
+const ROBOTO_REGULAR = path.join(fontsPath, 'Roboto-Regular.ttf');
 
 // Генерация уникального 4-значного кода
 async function generateShortCode() {
@@ -114,7 +79,7 @@ router.post('/', [
     }
 });
 
-// PUT
+// Обновление
 router.put('/:id', [authenticateToken, authorizeRole('admin')], async (req, res) => {
     const { id } = req.params;
     const { name, description, latitude, longitude, radius_meters, is_active } = req.body;
@@ -123,13 +88,13 @@ router.put('/:id', [authenticateToken, authorizeRole('admin')], async (req, res)
             `UPDATE checkpoints SET name = COALESCE($1, name), description = COALESCE($2, description), latitude = COALESCE($3, latitude), longitude = COALESCE($4, longitude), radius_meters = COALESCE($5, radius_meters), is_active = COALESCE($6, is_active), updated_at = CURRENT_TIMESTAMP WHERE id = $7 RETURNING *`,
             [name, description, latitude, longitude, radius_meters, is_active, id]
         );
-        res.json({ message: 'Конводная точка обновлена', checkpoint: result.rows[0] });
+        res.json({ message: 'Контрольная точка обновлена', checkpoint: result.rows[0] });
     } catch (error) {
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
 
-// DELETE
+// Удаление
 router.delete('/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
     try {
         await pool.query('DELETE FROM checkpoints WHERE id = $1', [req.params.id]);
@@ -139,7 +104,7 @@ router.delete('/:id', authenticateToken, authorizeRole('admin'), async (req, res
     }
 });
 
-// Простой QR
+// Простой QR для API
 router.get('/:id/qrcode', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query('SELECT qr_code_data, short_code, name FROM checkpoints WHERE id = $1', [req.params.id]);
@@ -152,7 +117,7 @@ router.get('/:id/qrcode', authenticateToken, async (req, res) => {
     }
 });
 
-// ПЕЧАТНАЯ ФОРМА
+// ГЕНЕРАЦИЯ PDF ДЛЯ ПЕЧАТИ
 router.get('/:id/qrcode/print', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -162,65 +127,83 @@ router.get('/:id/qrcode/print', authenticateToken, async (req, res) => {
         const { qr_code_data, short_code, name, checkpoint_type } = result.rows[0];
         const displayCode = short_code || qr_code_data.slice(-4);
 
-        const width = 595;
-        const height = 842;
-        const canvas = createCanvas(width, height);
-        const ctx = canvas.getContext('2d');
+        // Создаем PDF документ
+        const doc = new PDFDocument({
+            size: 'A4',
+            margin: 50
+        });
 
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, width, height);
-
-        // Лого
-        ctx.fillStyle = '#00B14C';
-        ctx.font = hasRoboto ? 'bold 42px Roboto' : 'bold 42px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('DI SECURITY', width / 2, 95);
-
-        // Название
-        ctx.fillStyle = '#1e293b';
-        ctx.font = hasRoboto ? 'bold 36px Roboto' : 'bold 36px sans-serif';
-        const maxWidth = width - 80;
-        const words = name.split(' ');
-        let lines = [];
-        let curLine = '';
-        for (const w of words) {
-            const test = curLine ? curLine + ' ' + w : w;
-            if (ctx.measureText(test).width > maxWidth) { lines.push(curLine); curLine = w; } else { curLine = test; }
-        }
-        lines.push(curLine);
-        lines.forEach((l, i) => ctx.fillText(l, width / 2, 180 + i * 45));
-
-        // Тип
-        ctx.font = hasRoboto ? '22px Roboto' : '22px sans-serif';
-        ctx.fillStyle = '#64748b';
-        ctx.fillText(`Тип: ${checkpoint_type === 'kpp' ? 'КПП' : 'Патруль'}`, width / 2, 180 + lines.length * 45 + 20);
-
-        // QR
-        const qrSize = 300;
-        const qrBuffer = await QRCode.toBuffer(qr_code_data, { errorCorrectionLevel: 'H', width: qrSize });
-        const qrImage = await loadImage(qrBuffer);
-        ctx.drawImage(qrImage, (width - qrSize) / 2, 350, qrSize, qrSize);
-
-        // Код
-        ctx.fillStyle = '#1e293b';
-        ctx.font = hasRoboto ? 'bold 84px Roboto' : 'bold 84px sans-serif';
-        ctx.fillText(displayCode, width / 2, 730);
-
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = hasRoboto ? '20px Roboto' : '20px sans-serif';
-        ctx.fillText('Код для ручного ввода', width / 2, 775);
-
-        ctx.font = hasRoboto ? '16px Roboto' : '16px sans-serif';
-        ctx.fillText('Наведите камеру на QR код или введите код вручную', width / 2, height - 50);
-
-        const buffer = canvas.toBuffer('image/png');
-        const filename = encodeURIComponent(`qr_${displayCode}_${name.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}.png`);
-        res.setHeader('Content-Type', 'image/png');
+        // Настраиваем Response
+        const filename = encodeURIComponent(`QR_${displayCode}_${name.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}.pdf`);
+        res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${filename}`);
-        res.send(buffer);
+
+        doc.pipe(res);
+
+        // Проверяем наличие шрифтов
+        const hasBold = fs.existsSync(ROBOTO_BOLD);
+        const hasRegular = fs.existsSync(ROBOTO_REGULAR);
+
+        // Логотип (текст)
+        if (hasBold) doc.font(ROBOTO_BOLD);
+        doc.fillColor('#00B14C')
+            .fontSize(42)
+            .text('DI SECURITY', { align: 'center' });
+
+        doc.moveDown(2);
+
+        // Название локации
+        doc.fillColor('#1e293b');
+        if (hasBold) doc.font(ROBOTO_BOLD);
+        doc.fontSize(36)
+            .text(name, { align: 'center', width: 500 });
+
+        doc.moveDown(0.5);
+
+        // Тип точки
+        doc.fillColor('#64748b');
+        if (hasRegular) doc.font(ROBOTO_REGULAR);
+        doc.fontSize(22)
+            .text(`Тип: ${checkpoint_type === 'kpp' ? 'КПП' : 'Патруль'}`, { align: 'center' });
+
+        doc.moveDown(2);
+
+        // QR код (генерируем буфер PNG)
+        const qrBuffer = await QRCode.toBuffer(qr_code_data, {
+            errorCorrectionLevel: 'H',
+            margin: 1,
+            width: 800 // Высокое разрешение для PDF
+        });
+
+        doc.image(qrBuffer, {
+            fit: [300, 300],
+            align: 'center',
+            valign: 'center'
+        });
+
+        doc.moveDown(8); // Отступ вниз от QR
+
+        // 4-значный код
+        doc.fillColor('#1e293b');
+        if (hasBold) doc.font(ROBOTO_BOLD);
+        doc.fontSize(84)
+            .text(displayCode, { align: 'center' });
+
+        // Подпись
+        doc.fillColor('#94a3b8');
+        if (hasRegular) doc.font(ROBOTO_REGULAR);
+        doc.fontSize(20)
+            .text('Код для ручного ввода', { align: 'center' });
+
+        // Футер
+        doc.fontSize(16)
+            .text('Наведите камеру на QR код или введите код вручную', 50, doc.page.height - 100, { align: 'center' });
+
+        doc.end();
+
     } catch (error) {
-        console.error('Print error:', error);
-        res.status(500).json({ error: 'Ошибка генерации' });
+        console.error('PDF Generation Error:', error);
+        res.status(500).send('Ошибка генерации PDF');
     }
 });
 
