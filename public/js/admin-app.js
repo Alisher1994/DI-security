@@ -590,9 +590,12 @@ function renderCheckpointsGrid(checkpoints) {
           <div class="card-title">${cp.name}</div>
           <div class="card-subtitle">${cp.checkpoint_type === 'kpp' ? 'КПП' : 'Точка патруля'}</div>
         </div>
-        <span class="badge ${cp.is_active ? 'badge-success' : 'badge-danger'}">
-          ${cp.is_active ? 'Активна' : 'Неактивна'}
-        </span>
+        <div class="card-status-toggle">
+          <label class="switch">
+            <input type="checkbox" ${cp.is_active ? 'checked' : ''} onchange="toggleCheckpointStatus(${cp.id}, this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
       </div>
       <div class="card-body">
         <div class="card-info">
@@ -697,6 +700,15 @@ function showCheckpointModal(checkpoint = null) {
           <label>Радиус (метры)</label>
           <input type="number" name="radius_meters" class="input-field" value="${isEdit ? checkpoint.radius_meters : 50}" min="10" max="500" required>
         </div>
+
+        <div class="switch-label-group">
+          <span class="switch-label">Точка активна</span>
+          <label class="switch">
+            <input type="checkbox" name="is_active" ${!isEdit || checkpoint.is_active ? 'checked' : ''}>
+            <span class="slider"></span>
+          </label>
+        </div>
+
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
           <button type="submit" class="btn btn-success">${isEdit ? 'Сохранить' : 'Создать'}</button>
@@ -766,7 +778,13 @@ function showCheckpointModal(checkpoint = null) {
         e.preventDefault();
 
         const formData = new FormData(e.target);
-        const data = Object.fromEntries(formData);
+        const data = Object.fromEntries(formData.entries());
+
+        // Обработка чекбокса активности
+        data.is_active = formData.get('is_active') === 'on';
+        data.latitude = parseFloat(data.latitude);
+        data.longitude = parseFloat(data.longitude);
+        data.radius_meters = parseInt(data.radius_meters);
 
         try {
           if (isEdit) {
@@ -811,6 +829,29 @@ async function deleteCheckpoint(id) {
     loadCheckpoints();
   } catch (error) {
     showNotification(error.message, 'error');
+  }
+}
+
+async function toggleCheckpointStatus(id, isActive) {
+  try {
+    const cp = await apiRequest(`/checkpoints/${id}`);
+    const data = { ...cp.checkpoint, is_active: isActive };
+
+    // Очищаем лишние поля перед отправкой
+    delete data.id;
+    delete data.created_at;
+    delete data.updated_at;
+
+    await apiRequest(`/checkpoints/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+
+    showNotification(`Точка ${isActive ? 'активирована' : 'деактивирована'}`, 'success');
+  } catch (error) {
+    console.error(error);
+    showNotification('Ошибка при смене статуса', 'error');
+    loadCheckpoints(); // Возвращаем состояние если ошибка
   }
 }
 
@@ -1219,9 +1260,15 @@ function showShiftModal(shift = null) {
           e.preventDefault();
 
           const formData = new FormData(e.target);
-          const data = Object.fromEntries(formData);
+          const data = Object.fromEntries(formData.entries());
 
           try {
+            // Обработка чекбокса (these lines were previously outside the try block)
+            // data.is_active = formData.get('is_active') === 'on'; // This field is not in the form for shifts
+            // data.latitude = parseFloat(data.latitude); // These fields are not in the form for shifts
+            // data.longitude = parseFloat(data.longitude); // These fields are not in the form for shifts
+            // data.radius_meters = parseInt(data.radius_meters); // These fields are not in the form for shifts
+
             if (isEdit) {
               await apiRequest(`/shifts/${shift.id}`, {
                 method: 'PUT',
