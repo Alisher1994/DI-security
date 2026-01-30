@@ -390,6 +390,7 @@ function renderRealtimeMap(checkpoints, patrols) {
   // Add checkpoints
   checkpoints.forEach(cp => {
     const marker = new ymaps.Placemark([cp.latitude, cp.longitude], {
+      iconCaption: cp.name,
       balloonContent: `
         <div style="min-width: 200px; padding: 5px; color: #1e293b;">
             <strong style="font-size: 1.1rem; display: block; margin-bottom: 5px;">${cp.name}</strong>
@@ -417,7 +418,7 @@ function renderRealtimeMap(checkpoints, patrols) {
         </div>
       `
     }, {
-      preset: cp.checkpoint_type === 'kpp' ? 'islands#redDotIcon' : 'islands#greenDotIcon'
+      preset: cp.checkpoint_type === 'kpp' ? 'islands#redDotIconWithCaption' : 'islands#greenDotIconWithCaption'
     });
 
     realtimeMap.geoObjects.add(marker);
@@ -446,7 +447,6 @@ function renderRealtimeMap(checkpoints, patrols) {
           <small>Точность: ${Math.round(patrol.accuracy)}м</small>
         `
       }, {
-        // Используем эмодзи вместо стандартного значка
         iconLayout: 'default#imageWithContent',
         iconImageHref: '',
         iconImageSize: [52, 52],
@@ -454,9 +454,9 @@ function renderRealtimeMap(checkpoints, patrols) {
         iconContentLayout: ymaps.templateLayoutFactory.createClass(
           `<div style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
             <div style="font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">👮</div>
-            <div style="background: rgba(15, 23, 42, 0.9); color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
-                <div style="font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 2px; padding-bottom: 1px;">${patrol.full_name.split(' ')[0]}</div>
-                <div>${new Date(patrol.recorded_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
+            <div style="background: rgba(15, 23, 42, 0.95); color: white; padding: 4px 8px; border-radius: 6px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.4); text-align: center; min-width: 80px;">
+                <div style="font-weight: 800; border-bottom: 1px solid rgba(255,255,255,0.2); margin-bottom: 3px; padding-bottom: 2px;">${patrol.full_name}</div>
+                <div style="opacity: 0.9; font-weight: 500;">${new Date(patrol.recorded_at).toLocaleString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
            </div>`
         )
