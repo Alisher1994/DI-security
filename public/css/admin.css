@@ -275,6 +275,11 @@ body {
 }
 
 /* Charts */
+.charts-grid-single {
+    display: block;
+    margin-bottom: 2rem;
+}
+
 .charts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));

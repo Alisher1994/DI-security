@@ -4,7 +4,6 @@ let authToken = localStorage.getItem('authToken');
 let currentUser = null;
 let realtimeMap = null;
 let scansChart = null;
-let checkpointTypesChart = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -186,10 +185,6 @@ async function loadDashboardCharts() {
     // Scans chart - last 7 days
     const scansData = await loadScansChartData();
     renderScansChart(scansData);
-
-    // Checkpoints types chart
-    const checkpoints = await apiRequest('/checkpoints');
-    renderCheckpointTypesChart(checkpoints.checkpoints);
   } catch (error) {
     console.error('Failed to load charts:', error);
   }
@@ -275,38 +270,7 @@ function renderScansChart(chartData) {
   });
 }
 
-function renderCheckpointTypesChart(checkpoints) {
-  const kppCount = checkpoints.filter(cp => cp.checkpoint_type === 'kpp').length;
-  const patrolCount = checkpoints.filter(cp => cp.checkpoint_type === 'patrol').length;
 
-  const ctx = document.getElementById('checkpointTypesChart');
-
-  if (checkpointTypesChart) {
-    checkpointTypesChart.destroy();
-  }
-
-  checkpointTypesChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['КПП', 'Патруль'],
-      datasets: [{
-        data: [kppCount, patrolCount],
-        backgroundColor: ['#ef4444', '#10b981']
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: {
-        legend: {
-          labels: {
-            color: '#cbd5e1'
-          }
-        }
-      }
-    }
-  });
-}
 
 function renderRecentScans(scans) {
   const container = document.getElementById('recentScans');
