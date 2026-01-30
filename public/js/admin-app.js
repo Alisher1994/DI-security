@@ -1258,17 +1258,10 @@ function showShiftModal(shift = null) {
       onLoad: () => {
         document.getElementById('shiftForm').addEventListener('submit', async (e) => {
           e.preventDefault();
-
           const formData = new FormData(e.target);
           const data = Object.fromEntries(formData.entries());
 
           try {
-            // Обработка чекбокса (these lines were previously outside the try block)
-            // data.is_active = formData.get('is_active') === 'on'; // This field is not in the form for shifts
-            // data.latitude = parseFloat(data.latitude); // These fields are not in the form for shifts
-            // data.longitude = parseFloat(data.longitude); // These fields are not in the form for shifts
-            // data.radius_meters = parseInt(data.radius_meters); // These fields are not in the form for shifts
-
             if (isEdit) {
               await apiRequest(`/shifts/${shift.id}`, {
                 method: 'PUT',
