@@ -239,7 +239,7 @@ function renderScansChart(chartData) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: {
           labels: {

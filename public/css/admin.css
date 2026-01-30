@@ -52,22 +52,15 @@ body {
     border-bottom: 1px solid var(--border);
 }
 
-.logo {
+.sidebar-logo-container {
     display: flex;
+    justify-content: center;
     align-items: center;
-    gap: 0.75rem;
 }
 
-.logo-icon {
-    font-size: 2rem;
-}
-
-.logo-text {
-    font-size: 1.25rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, #60a5fa, #3b82f6);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+.sidebar-logo {
+    max-width: 180px;
+    height: auto;
 }
 
 .sidebar-nav {
@@ -181,6 +174,7 @@ body {
     font-weight: 700;
     background: linear-gradient(135deg, #f1f5f9, #cbd5e1);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -292,6 +286,8 @@ body {
     border: 1px solid var(--border);
     border-radius: 1rem;
     padding: 1.5rem;
+    max-height: 400px;
+    /* Ограничили высоту */
 }
 
 .chart-title {
