@@ -1026,14 +1026,23 @@ function showCheckpointModal(checkpoint = null) {
         if (typeof L !== 'undefined') {
           const modalMap = L.map('modal-map').setView([initialLat, initialLng], 15);
 
-          L.tileLayer('https://{s}.tile.openstreetMap.org/{z}/{x}/{y}.png', {
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 19
           }).addTo(modalMap);
 
+          // Создаем кастомную иконку (синяя точка), которой не нужны картинки
+          const blueDotIcon = L.divIcon({
+            className: 'custom-div-icon',
+            html: `<div style="width: 20px; height: 20px; background: #3b82f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+          });
+
           // Create draggable marker
           const modalMarker = L.marker([initialLat, initialLng], {
-            draggable: true
+            draggable: true,
+            icon: blueDotIcon
           }).addTo(modalMap);
 
           modalMarker.bindPopup('Выбранная точка').openPopup();
