@@ -906,3 +906,60 @@ input:checked+.slider:before {
     border: none !important;
 
 }
+
+.support-info {
+    padding: 1rem;
+    margin: 1rem;
+    background: rgba(59, 130, 246, 0.05);
+    border: 1px solid rgba(59, 130, 246, 0.1);
+    border-radius: 12px;
+    font-size: 0.8rem;
+}
+
+.support-label {
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.75rem;
+}
+
+.support-text {
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
+    opacity: 0.8;
+}
+
+.support-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+}
+
+.support-link:hover {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--primary);
+    transform: translateX(4px);
+}
+
+.support-icon {
+    font-size: 1rem;
+}
+
+.support-name {
+    margin-top: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    opacity: 0.9;
+    text-align: right;
+    font-size: 0.75rem;
+}
