@@ -13,12 +13,15 @@ let isTerritoryEditMode = false;
 let territoryEditMarkers = []; // Маркеры границ при редактировании
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
-  // Получаем свежий токен прямо из хранилища
+document.addEventListener('DOMContentLoaded', async () => {
+  // Даем браузеру время продышаться, если мы только что после редиректа
+  await new Promise(resolve => setTimeout(resolve, 100));
+
   authToken = localStorage.getItem('authToken');
+  console.log('💎 Проверка авторизации админа...');
 
   if (!authToken) {
-    console.warn('🔑 Токен не найден, перенаправляем на логин');
+    console.warn('🔑 Токен не найден, переход на логин');
     window.location.replace('/');
     return;
   }
@@ -32,8 +35,10 @@ async function initializeApp() {
     currentUser = data.user;
 
     if (currentUser.role !== 'admin') {
+      console.error('🚫 Ошибка: пользователь не админ', currentUser.role);
       alert('Доступ только для администраторов');
-      window.location.href = '/';
+      localStorage.removeItem('authToken');
+      window.location.replace('/');
       return;
     }
 
@@ -48,8 +53,10 @@ async function initializeApp() {
     loadDashboard();
   } catch (error) {
     console.error('❌ Ошибка инициализации админа:', error);
-    // Если ошибка именно в авторизации - только тогда разлогиниваем
-    if (error.message.includes('аутентификация') || error.message.includes('токен')) {
+
+    // Если сервер ответил "Unauthorized" или "Forbidden"
+    if (error.status === 401 || error.status === 403 || error.message.toLowerCase().includes('токен') || error.message.toLowerCase().includes('аутентификация')) {
+      console.warn('🔚 Сессия невалидна, сброс');
       localStorage.removeItem('authToken');
       window.location.replace('/');
     } else {
@@ -77,7 +84,9 @@ async function apiRequest(endpoint, options = {}) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || 'Ошибка запроса');
+    const error = new Error(data.error || 'Ошибка запроса');
+    error.status = response.status;
+    throw error;
   }
 
   return data;
