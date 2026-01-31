@@ -1019,39 +1019,38 @@ function showCheckpointModal(checkpoint = null) {
         const initialLat = parseFloat(checkpoint ? checkpoint.latitude : 41.204358);
         const initialLng = parseFloat(checkpoint ? checkpoint.longitude : 69.234420);
 
-        ymaps.ready(() => {
-          const mContainer = document.getElementById('modal-map');
-          if (!mContainer) return;
+        const mContainer = document.getElementById('modal-map');
+        if (!mContainer) return;
 
-          const modalMap = new ymaps.Map('modal-map', {
-            center: [initialLat, initialLng],
-            zoom: 15,
-            controls: ['zoomControl', 'fullscreenControl', 'typeSelector']
-          });
+        // Используем Leaflet если доступен
+        if (typeof L !== 'undefined') {
+          const modalMap = L.map('modal-map').setView([initialLat, initialLng], 15);
 
-          // Create marker
-          const modalMarker = new ymaps.Placemark([initialLat, initialLng], {
-            balloonContent: 'Выбранная точка'
-          }, {
-            preset: 'islands#blueDotIconWithCaption',
+          L.tileLayer('https://{s}.tile.openstreetMap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+          }).addTo(modalMap);
+
+          // Create draggable marker
+          const modalMarker = L.marker([initialLat, initialLng], {
             draggable: true
-          });
+          }).addTo(modalMap);
 
-          modalMap.geoObjects.add(modalMarker);
+          modalMarker.bindPopup('Выбранная точка').openPopup();
 
           // Update inputs when marker is dragged
-          modalMarker.events.add('dragend', () => {
-            const coords = modalMarker.geometry.getCoordinates();
-            document.getElementById('modal-lat').value = coords[0].toFixed(6);
-            document.getElementById('modal-lng').value = coords[1].toFixed(6);
+          modalMarker.on('dragend', () => {
+            const { lat, lng } = modalMarker.getLatLng();
+            document.getElementById('modal-lat').value = lat.toFixed(6);
+            document.getElementById('modal-lng').value = lng.toFixed(6);
           });
 
           // Click on map to move marker
-          modalMap.events.add('click', (e) => {
-            const coords = e.get('coords');
-            modalMarker.geometry.setCoordinates(coords);
-            document.getElementById('modal-lat').value = coords[0].toFixed(6);
-            document.getElementById('modal-lng').value = coords[1].toFixed(6);
+          modalMap.on('click', (e) => {
+            const { lat, lng } = e.latlng;
+            modalMarker.setLatLng([lat, lng]);
+            document.getElementById('modal-lat').value = lat.toFixed(6);
+            document.getElementById('modal-lng').value = lng.toFixed(6);
           });
 
           // Sync inputs back to map if manually changed
@@ -1064,12 +1063,65 @@ function showCheckpointModal(checkpoint = null) {
               const lat = parseFloat(latInput.value);
               const lng = parseFloat(lngInput.value);
               if (!isNaN(lat) && !isNaN(lng)) {
-                modalMarker.geometry.setCoordinates([lat, lng]);
+                modalMarker.setLatLng([lat, lng]);
                 modalMap.setCenter([lat, lng]);
               }
             });
           });
-        });
+
+        } else if (typeof ymaps !== 'undefined') {
+          // Fallback на Yandex Maps
+          ymaps.ready(() => {
+            const modalMap = new ymaps.Map('modal-map', {
+              center: [initialLat, initialLng],
+              zoom: 15,
+              controls: ['zoomControl', 'fullscreenControl', 'typeSelector']
+            });
+
+            // Create marker
+            const modalMarker = new ymaps.Placemark([initialLat, initialLng], {
+              balloonContent: 'Выбранная точка'
+            }, {
+              preset: 'islands#blueDotIconWithCaption',
+              draggable: true
+            });
+
+            modalMap.geoObjects.add(modalMarker);
+
+            // Update inputs when marker is dragged
+            modalMarker.events.add('dragend', () => {
+              const coords = modalMarker.geometry.getCoordinates();
+              document.getElementById('modal-lat').value = coords[0].toFixed(6);
+              document.getElementById('modal-lng').value = coords[1].toFixed(6);
+            });
+
+            // Click on map to move marker
+            modalMap.events.add('click', (e) => {
+              const coords = e.get('coords');
+              modalMarker.geometry.setCoordinates(coords);
+              document.getElementById('modal-lat').value = coords[0].toFixed(6);
+              document.getElementById('modal-lng').value = coords[1].toFixed(6);
+            });
+
+            // Sync inputs back to map if manually changed
+            ['modal-lat', 'modal-lng'].forEach(id => {
+              document.getElementById(id).addEventListener('change', () => {
+                const latInput = document.getElementById('modal-lat');
+                const lngInput = document.getElementById('modal-lng');
+                if (!latInput || !lngInput) return;
+
+                const lat = parseFloat(latInput.value);
+                const lng = parseFloat(lngInput.value);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                  modalMarker.geometry.setCoordinates([lat, lng]);
+                  modalMap.setCenter([lat, lng]);
+                }
+              });
+            });
+          });
+        } else {
+          mContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted);">Карта недоступна. Введите координаты вручную.</div>';
+        }
       }, 100);
 
       document.getElementById('checkpointForm').addEventListener('submit', async (e) => {
