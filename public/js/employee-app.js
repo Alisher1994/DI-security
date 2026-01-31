@@ -117,7 +117,8 @@ async function handleLogin(e) {
         currentUser = data.user;
 
         if (currentUser.role === 'admin') {
-            window.location.href = '/admin.html';
+            console.log('👑 Админ вошел, перенаправляем...');
+            window.location.replace('/admin.html');
             return;
         }
 
@@ -155,7 +156,8 @@ async function loadUserData() {
         currentUser = data.user;
 
         if (currentUser.role === 'admin') {
-            window.location.href = '/admin.html';
+            console.log('👑 Сессия админа активна, переход...');
+            window.location.replace('/admin.html');
             return;
         }
 

@@ -14,8 +14,12 @@ let territoryEditMarkers = []; // Маркеры границ при редак�
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+  // Получаем свежий токен прямо из хранилища
+  authToken = localStorage.getItem('authToken');
+
   if (!authToken) {
-    window.location.href = '/';
+    console.warn('🔑 Токен не найден, перенаправляем на логин');
+    window.location.replace('/');
     return;
   }
 
@@ -43,9 +47,14 @@ async function initializeApp() {
     // Load initial page
     loadDashboard();
   } catch (error) {
-    console.error('Failed to load user:', error);
-    localStorage.removeItem('authToken');
-    window.location.href = '/';
+    console.error('❌ Ошибка инициализации админа:', error);
+    // Если ошибка именно в авторизации - только тогда разлогиниваем
+    if (error.message.includes('аутентификация') || error.message.includes('токен')) {
+      localStorage.removeItem('authToken');
+      window.location.replace('/');
+    } else {
+      showNotification('Ошибка связи с сервером. Попробуйте обновить страницу.', 'error');
+    }
   }
 }
 
