@@ -232,11 +232,22 @@ function isPointInPolygon(point, polygon) {
 router.get('/territory', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query("SELECT value FROM global_settings WHERE key = 'territory_polygon'");
-        const polygon = result.rows.length > 0 ? result.rows[0].value : [];
-        res.json({ polygon });
+        let polygon = result.rows.length > 0 ? result.rows[0].value : [];
+
+        // Гарантируем, что возвращаем массив, даже если в БД лежит строка
+        if (typeof polygon === 'string') {
+            try {
+                polygon = JSON.parse(polygon);
+            } catch (e) {
+                console.error('Ошибка парсинга полигона из БД:', e);
+                polygon = [];
+            }
+        }
+
+        res.json({ polygon: Array.isArray(polygon) ? polygon : [] });
     } catch (error) {
         console.error('Ошибка при получении территории:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
+        res.status(500).json({ error: 'Ошибка сервера: ' + error.message });
     }
 });
 
@@ -248,6 +259,8 @@ router.post('/territory', authenticateToken, authorizeRole('admin'), async (req,
             return res.status(400).json({ error: 'Полигон должен быть массивом координат' });
         }
 
+        // При работе с JSONB в pg-node лучше передавать объект напрямую, 
+        // но для надежности здесь мы гарантируем валидный JSON
         await pool.query(
             "INSERT INTO global_settings (key, value) VALUES ('territory_polygon', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
             [JSON.stringify(polygon)]
@@ -256,7 +269,7 @@ router.post('/territory', authenticateToken, authorizeRole('admin'), async (req,
         res.json({ message: 'Территория успешно сохранена', polygon });
     } catch (error) {
         console.error('Ошибка при сохранении территории:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
+        res.status(500).json({ error: 'Ошибка сервера сохранение: ' + error.message });
     }
 });
 
