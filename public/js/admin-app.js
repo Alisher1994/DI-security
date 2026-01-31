@@ -808,43 +808,20 @@ function renderScansTable(scans) {
     return;
   }
 
-  let html = '';
-  let lastMonth = '';
-  let lastDay = '';
-
-  scans.forEach(scan => {
-    const date = new Date(scan.scan_time);
-    const month = date.toLocaleString('ru-RU', { month: 'long', year: 'numeric', timeZone: 'Asia/Tashkent' });
-    const day = date.toLocaleString('ru-RU', { day: 'numeric', month: 'long', timeZone: 'Asia/Tashkent' });
-
-    if (month !== lastMonth) {
-      html += `<tr class="group-header month-header"><td colspan="6">${month}</td></tr>`;
-      lastMonth = month;
-      lastDay = ''; // Сбрасываем день при смене месяца
-    }
-
-    if (day !== lastDay) {
-      html += `<tr class="group-header day-header"><td colspan="6">${day}</td></tr>`;
-      lastDay = day;
-    }
-
-    html += `
-      <tr>
-        <td>${scan.id}</td>
-        <td>${formatDateTime(scan.scan_time)}</td>
-        <td>${scan.user_name}</td>
-        <td>${scan.checkpoint_name}</td>
-        <td>${Math.round(scan.distance_meters)}</td>
-        <td>
-          <span class="badge ${scan.is_valid ? 'badge-success' : 'badge-danger'}">
-            ${scan.is_valid ? 'Валидно' : 'Невалидно'}
-          </span>
-        </td>
-      </tr>
-    `;
-  });
-
-  tbody.innerHTML = html;
+  tbody.innerHTML = scans.map(scan => `
+    <tr>
+      <td>${scan.id}</td>
+      <td>${formatDateTime(scan.scan_time)}</td>
+      <td>${scan.user_name}</td>
+      <td>${scan.checkpoint_name}</td>
+      <td>${Math.round(scan.distance_meters)}</td>
+      <td>
+        <span class="badge ${scan.is_valid ? 'badge-success' : 'badge-danger'}">
+          ${scan.is_valid ? 'Валидно' : 'Невалидно'}
+        </span>
+      </td>
+    </tr>
+  `).join('');
 }
 
 function renderScansSummary(scans) {
