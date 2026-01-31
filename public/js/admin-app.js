@@ -1937,23 +1937,18 @@ function toggleTerritoryEditMode() {
     btn.innerHTML = '<span class="btn-icon">💾</span> Сохранить';
     btn.classList.add('btn-danger');
     btn.classList.remove('btn-success');
-    showNotification('Кликайте по карте для создания границ. В конце нажмите Сохранить.', 'info');
-
-    // Очищаем текущий полигон для перерисовки
-    territoryPolygon = [];
-    if (territoryLayer) {
-      if (mapProvider === 'leaflet') realtimeMap.removeLayer(territoryLayer);
-      else if (mapProvider === 'yandex') realtimeMap.geoObjects.remove(territoryLayer);
-      territoryLayer = null;
-    }
-
     // Очищаем старые маркеры редактирования
-    territoryEditMarkers.forEach(m => {
-      if (mapProvider === 'leaflet') m.remove();
-      else if (mapProvider === 'yandex') realtimeMap.geoObjects.remove(m);
-    });
-    territoryEditMarkers = [];
+    cleanupTerritoryEditMarkers();
 
+    if (territoryPolygon.length > 0) {
+      showNotification('Режим редактирования: кликайте для добавления точек, правый клик по точке — удалить.', 'info');
+      // Отрисовываем существующие точки для редактирования
+      const currentPoints = [...territoryPolygon];
+      territoryPolygon = []; // Очищаем для повторного добавления через addTerritoryPoint
+      currentPoints.forEach(p => addTerritoryPoint(p[0], p[1]));
+    } else {
+      showNotification('Кликайте по карте для создания границ. В конце нажмите Сохранить.', 'info');
+    }
   } else {
     btn.innerHTML = '<span class="btn-icon">📐</span> Граница территории';
     btn.classList.remove('btn-danger');
@@ -1968,18 +1963,81 @@ function addTerritoryPoint(lat, lng) {
   // Визуализируем точку
   if (mapProvider === 'leaflet') {
     const marker = L.circleMarker([lat, lng], {
-      radius: 5,
-      color: '#ef4444',
+      radius: 6,
+      color: '#ffffff',
+      weight: 2,
       fillColor: '#ef4444',
-      fillOpacity: 1
+      fillOpacity: 1,
+      interactive: true
     }).addTo(realtimeMap);
+
+    // Удаление точки правым кликом
+    marker.on('contextmenu', (e) => {
+      L.DomEvent.stopPropagation(e);
+      removeTerritoryPoint(lat, lng, marker);
+    });
+
     territoryEditMarkers.push(marker);
 
-    // Обновляем временный полигон
-    if (territoryPolygon.length >= 3) {
-      if (territoryLayer) realtimeMap.removeLayer(territoryLayer);
-      territoryLayer = L.polygon(territoryPolygon, { color: '#ef4444', weight: 2, fillOpacity: 0.2 }).addTo(realtimeMap);
-    }
+    updateTerritoryVisual();
+  }
+}
+
+function removeTerritoryPoint(lat, lng, marker) {
+  const index = territoryPolygon.findIndex(p => p[0] === lat && p[1] === lng);
+  if (index > -1) {
+    territoryPolygon.splice(index, 1);
+    marker.remove();
+    territoryEditMarkers = territoryEditMarkers.filter(m => m !== marker);
+    updateTerritoryVisual();
+  }
+}
+
+function updateTerritoryVisual() {
+  if (mapProvider !== 'leaflet') return;
+
+  if (territoryLayer) realtimeMap.removeLayer(territoryLayer);
+
+  if (territoryPolygon.length >= 3) {
+    territoryLayer = L.polygon(territoryPolygon, {
+      color: '#ef4444',
+      weight: 3,
+      fillOpacity: 0.3,
+      dashArray: '5, 10'
+    }).addTo(realtimeMap);
+  }
+}
+
+function cleanupTerritoryEditMarkers() {
+  territoryEditMarkers.forEach(m => {
+    if (mapProvider === 'leaflet') m.remove();
+    else if (mapProvider === 'yandex') realtimeMap.geoObjects.remove(m);
+  });
+  territoryEditMarkers = [];
+
+  if (territoryLayer) {
+    if (mapProvider === 'leaflet') realtimeMap.removeLayer(territoryLayer);
+    else if (mapProvider === 'yandex') realtimeMap.geoObjects.remove(territoryLayer);
+    territoryLayer = null;
+  }
+}
+
+async function deleteTerritory() {
+  if (!confirm('Вы уверены, что хотите полностью удалить границы территории?')) return;
+
+  try {
+    await apiRequest('/gps/territory', {
+      method: 'POST',
+      body: JSON.stringify({ polygon: [] })
+    });
+
+    territoryPolygon = [];
+    cleanupTerritoryEditMarkers();
+    renderTerritory();
+    showNotification('Территория удалена', 'success');
+  } catch (error) {
+    console.error('Ошибка удаления территории:', error);
+    showNotification('Не удалось удалить территорию', 'error');
   }
 }
 
@@ -1999,10 +2057,7 @@ async function saveTerritory() {
     showNotification('Границы территории успешно сохранены', 'success');
 
     // Очищаем маркеры редактирования
-    territoryEditMarkers.forEach(m => {
-      if (mapProvider === 'leaflet') m.remove();
-    });
-    territoryEditMarkers = [];
+    cleanupTerritoryEditMarkers();
 
     renderTerritory();
   } catch (error) {
