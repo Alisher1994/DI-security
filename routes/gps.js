@@ -5,7 +5,29 @@ import { authenticateToken, authorizeRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Начало сессии патрулирования
+// Функция для гарантированного создания таблицы (авто-миграция)
+async function ensureSettingsTable() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS global_settings (
+                key TEXT PRIMARY KEY,
+                value JSONB
+            );
+        `);
+        // Проверяем наличие записи для территории
+        await pool.query(`
+            INSERT INTO global_settings (key, value)
+            VALUES ('territory_polygon', '[]'::jsonb)
+            ON CONFLICT (key) DO NOTHING;
+        `);
+        console.log('✅ Таблица настроек проверена и готова к работе');
+    } catch (err) {
+        console.error('❌ Ошибка при инициализации таблицы настроек:', err.message);
+    }
+}
+
+// Запускаем проверку при загрузке модуля
+ensureSettingsTable();
 router.post('/session/start', authenticateToken, async (req, res) => {
     const userId = req.user.id;
 
@@ -228,24 +250,29 @@ function isPointInPolygon(point, polygon) {
 
 // Получение настроек территории
 router.get('/territory', authenticateToken, async (req, res) => {
+    console.log('📡 Запрос на получение территории. Пользователь:', req.user.id);
     try {
         const result = await pool.query("SELECT value::text FROM global_settings WHERE key = 'territory_polygon'");
         let polygon = [];
         if (result.rows.length > 0 && result.rows[0].value) {
             const rawValue = result.rows[0].value;
             polygon = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+            console.log('✅ Территория получена. Точек:', polygon.length);
+        } else {
+            console.log('ℹ️ Территория в базе отсутствует (пустой массив)');
         }
         res.json({ polygon: Array.isArray(polygon) ? polygon : [] });
     } catch (error) {
-        console.error('❌ Ошибка /api/gps/territory (GET):', error);
+        console.error('❌ Ошибка /api/gps/territory (GET):', error.message);
         res.status(500).json({ error: 'БД Ошибка: ' + error.message });
     }
 });
 
 // Сохранение настроек территории
 router.post('/territory', authenticateToken, authorizeRole('admin'), async (req, res) => {
+    const { polygon } = req.body;
+    console.log('💾 Попытка сохранения территории. Точек:', polygon?.length, 'Админ:', req.user.id);
     try {
-        const { polygon } = req.body;
         if (!Array.isArray(polygon)) {
             return res.status(400).json({ error: 'Полигон должен быть массивом' });
         }
@@ -256,9 +283,10 @@ router.post('/territory', authenticateToken, authorizeRole('admin'), async (req,
             [JSON.stringify(polygon)]
         );
 
+        console.log('✅ Территория успешно сохранена в базу');
         res.json({ message: 'Территория успешно сохранена', polygon });
     } catch (error) {
-        console.error('❌ Ошибка /api/gps/territory (POST):', error);
+        console.error('❌ Ошибка /api/gps/territory (POST):', error.message);
         res.status(500).json({ error: 'Ошибка сохранения: ' + error.message });
     }
 });
