@@ -470,6 +470,75 @@ body {
   color: var(--text-muted);
 }
 
+/* Session Compact View */
+.session-active-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.stat-item-mini {
+  flex: 1;
+  background: var(--bg-tertiary);
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  /* Чтобы не распирало */
+}
+
+.stat-value-mini {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.btn-mini {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.btn-mini .btn-text {
+  display: block;
+}
+
+@media (max-width: 360px) {
+  .btn-mini .btn-text {
+    display: none;
+  }
+}
+
+/* Grouped History */
+.history-date-group {
+  margin-bottom: 1.5rem;
+}
+
+.history-date-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.75rem;
+  padding-left: 0.5rem;
+  border-left: 3px solid var(--primary-color);
+}
+
+.history-month-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 2rem 0 1rem 0;
+  background: var(--bg-tertiary);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+}
+
 /* Patrol Controls */
 .session-state {
   text-align: center;
@@ -801,6 +870,7 @@ body {
 @media (max-width: 768px) {
 
   .shift-details,
+  .session-stats,
   .location-info {
     grid-template-columns: 1fr;
   }

@@ -186,8 +186,8 @@ async function initializeMainScreen() {
         initializeMap();
     }
 
-    // QR scanning is always enabled for authenticated users
-    document.getElementById('scan-qr-btn').disabled = false;
+    // QR scanning is disabled by default, will be enabled if session is active
+    document.getElementById('scan-qr-btn').disabled = true;
 
     // Load checkpoints
     await loadCheckpoints();
@@ -224,6 +224,9 @@ async function checkActiveSession() {
             // Запускаем GPS и Таймер (с учетом времени начала сессии)
             startGPSTracking();
             startSessionTimer(new Date(patrolSession.session_start));
+
+            // Включаем сканер
+            document.getElementById('scan-qr-btn').disabled = false;
 
             console.log('🔄 Сессия патрулирования восстановлена');
         } else if (currentUser.role === 'patrol') {
@@ -268,6 +271,9 @@ async function startPatrolSession(isAuto = false) {
         // Start session timer
         startSessionTimer();
 
+        // Включаем сканер
+        document.getElementById('scan-qr-btn').disabled = false;
+
         if (!isAuto) {
             showNotification('Патрулирование начато', 'success');
         }
@@ -305,6 +311,9 @@ async function stopPatrolSession() {
             clearInterval(sessionInterval);
             sessionInterval = null;
         }
+
+        // Выключаем сканер
+        document.getElementById('scan-qr-btn').disabled = true;
 
         showNotification('Патрулирование завершено', 'success');
     } catch (error) {
@@ -601,32 +610,56 @@ async function processQRScan(qrCode) {
 // Scan History
 async function loadScanHistory() {
     try {
-        const data = await apiRequest('/scans?limit=10');
-
+        const data = await apiRequest('/scans?limit=50'); // Берем побольше для группировки
         const historyEl = document.getElementById('scan-history');
 
-        if (data.scans.length === 0) {
+        if (!data.scans || data.scans.length === 0) {
             historyEl.innerHTML = `
-        <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
-          <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
-          <div>Нет сканирований</div>
-        </div>
-      `;
+                <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                  <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+                  <div>Нет сканирований</div>
+                </div>
+            `;
             return;
         }
 
-        historyEl.innerHTML = data.scans.map(scan => `
-      <div class="scan-item">
-        <div class="scan-icon ${scan.is_valid ? 'success' : 'error'}">
-          ${scan.is_valid ? '✅' : '❌'}
-        </div>
-        <div class="scan-details">
-          <div class="scan-checkpoint">${scan.checkpoint_name}</div>
-          <div class="scan-time">${formatDateTime(scan.scan_time)}</div>
-          ${scan.distance_meters ? `<div class="scan-distance">Расстояние: ${Math.round(scan.distance_meters)} м</div>` : ''}
-        </div>
-      </div>
-    `).join('');
+        // Группировка
+        const groups = {};
+        data.scans.forEach(scan => {
+            const date = new Date(scan.scan_time);
+            const monthYear = date.toLocaleString('ru-RU', { month: 'long', year: 'numeric' });
+            const dayKey = date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+            if (!groups[monthYear]) groups[monthYear] = {};
+            if (!groups[monthYear][dayKey]) groups[monthYear][dayKey] = [];
+            groups[monthYear][dayKey].push(scan);
+        });
+
+        let html = '';
+        for (const month in groups) {
+            html += `<div class="history-month-title">${month}</div>`;
+            for (const day in groups[month]) {
+                html += `
+                    <div class="history-date-group">
+                        <div class="history-date-title">${day}</div>
+                        ${groups[month][day].map(scan => `
+                            <div class="scan-item">
+                                <div class="scan-icon ${scan.is_valid ? 'success' : 'error'}">
+                                    ${scan.is_valid ? '✅' : '❌'}
+                                </div>
+                                <div class="scan-details">
+                                    <div class="scan-checkpoint">${scan.checkpoint_name}</div>
+                                    <div class="scan-time">${new Date(scan.scan_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
+                                    ${scan.distance_meters ? `<div class="scan-distance">Расстояние: ${Math.round(scan.distance_meters)} м</div>` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+        }
+
+        historyEl.innerHTML = html;
     } catch (error) {
         console.error('Failed to load scan history:', error);
     }
