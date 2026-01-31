@@ -22,12 +22,50 @@ const upload = multer({
     }
 });
 
+// Функция для добавления недостающих колонок (авто-миграция)
+async function ensureUsersColumns() {
+    try {
+        const columnsToAdd = [
+            { name: 'first_name', type: 'TEXT' },
+            { name: 'last_name', type: 'TEXT' },
+            { name: 'patronymic', type: 'TEXT' },
+            { name: 'is_active', type: 'BOOLEAN DEFAULT true' }
+        ];
+
+        for (const col of columnsToAdd) {
+            await pool.query(`
+                DO $$ 
+                BEGIN 
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='${col.name}') THEN
+                        ALTER TABLE users ADD COLUMN ${col.name} ${col.type};
+                    END IF;
+                END $$;
+            `);
+        }
+        console.log('✅ Структура таблицы users проверена');
+    } catch (err) {
+        console.error('❌ Ошибка при обновлении колонок users:', err.message);
+    }
+}
+
+// Запускаем проверку
+ensureUsersColumns();
+
 // Получение списка всех сотрудников (только админ)
 router.get('/', authenticateToken, authorizeRole('admin'), async (req, res) => {
     try {
         const { role } = req.query;
 
-        let query = 'SELECT id, phone, first_name, last_name, patronymic, full_name, role, is_active, created_at FROM users WHERE 1=1';
+        // Используем COALESCE для совместимости со старыми записями
+        let query = `
+            SELECT 
+                id, phone, 
+                COALESCE(first_name, '') as first_name, 
+                COALESCE(last_name, '') as last_name, 
+                COALESCE(patronymic, '') as patronymic, 
+                full_name, role, is_active, created_at 
+            FROM users 
+            WHERE 1=1`;
         const values = [];
         let counter = 1;
 
@@ -41,8 +79,8 @@ router.get('/', authenticateToken, authorizeRole('admin'), async (req, res) => {
         const result = await pool.query(query, values);
         res.json({ employees: result.rows });
     } catch (error) {
-        console.error('Ошибка при получении сотрудников:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
+        console.error('❌ Ошибка /api/employees (GET):', error);
+        res.status(500).json({ error: 'Сервер: ' + error.message });
     }
 });
 
