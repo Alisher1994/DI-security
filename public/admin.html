@@ -251,6 +251,30 @@
                                 <th>Статус</th>
                                 <th>Действия</th>
                             </tr>
+                            <tr class="filter-row">
+                                <th><input type="text" id="filter-emp-id" placeholder="Фильтр..." class="filter-input">
+                                </th>
+                                <th><input type="text" id="filter-emp-name" placeholder="Поиск по ФИО..."
+                                        class="filter-input"></th>
+                                <th><input type="text" id="filter-emp-phone" placeholder="Телефон..."
+                                        class="filter-input"></th>
+                                <th>
+                                    <select id="filter-emp-role" class="filter-input">
+                                        <option value="">Все</option>
+                                        <option value="admin">Админ</option>
+                                        <option value="kpp">КПП</option>
+                                        <option value="patrol">Патруль</option>
+                                    </select>
+                                </th>
+                                <th>
+                                    <select id="filter-emp-status" class="filter-input">
+                                        <option value="">Все</option>
+                                        <option value="active">Активен</option>
+                                        <option value="blocked">Заблокирован</option>
+                                    </select>
+                                </th>
+                                <th></th>
+                            </tr>
                         </thead>
                         <tbody id="employeesTableBody"></tbody>
                     </table>

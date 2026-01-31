@@ -11,6 +11,7 @@ let territoryPolygon = []; // Координаты территории
 let territoryLayer = null; // Слой полигона на карте
 let isTerritoryEditMode = false;
 let territoryEditMarkers = []; // Маркеры границ при редактировании
+let allEmployees = []; // Хранилище всех сотрудников для фильтрации
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -182,6 +183,11 @@ function setupEventListeners() {
     if (fileInput) fileInput.click();
   });
   safeAddEventListener('importFile', 'change', importEmployeesFromXLSX);
+
+  // Фильтрация сотрудников
+  ['filter-emp-id', 'filter-emp-name', 'filter-emp-phone', 'filter-emp-role', 'filter-emp-status'].forEach(id => {
+    safeAddEventListener(id, 'input', applyEmployeeFilters);
+  });
 }
 
 function handleLogout() {
@@ -1307,11 +1313,35 @@ async function toggleCheckpointStatus(id, isActive) {
 async function loadEmployees() {
   try {
     const data = await apiRequest('/employees');
-    renderEmployeesTable(data.employees);
+    allEmployees = data.employees || [];
+    applyEmployeeFilters(); // Сначала применяем текущие фильтры
   } catch (error) {
     console.error('Failed to load employees:', error);
     showNotification('Ошибка загрузки сотрудников', 'error');
   }
+}
+
+function applyEmployeeFilters() {
+  const fId = document.getElementById('filter-emp-id')?.value.toLowerCase() || '';
+  const fName = document.getElementById('filter-emp-name')?.value.toLowerCase() || '';
+  const fPhone = document.getElementById('filter-emp-phone')?.value.toLowerCase() || '';
+  const fRole = document.getElementById('filter-emp-role')?.value || '';
+  const fStatus = document.getElementById('filter-emp-status')?.value || '';
+
+  const filtered = allEmployees.filter(emp => {
+    const matchesId = emp.id.toString().includes(fId);
+    const matchesName = emp.full_name.toLowerCase().includes(fName);
+    const matchesPhone = (emp.phone || '').toString().includes(fPhone);
+    const matchesRole = !fRole || emp.role === fRole;
+
+    let matchesStatus = true;
+    if (fStatus === 'active') matchesStatus = emp.is_active === true;
+    if (fStatus === 'blocked') matchesStatus = emp.is_active === false;
+
+    return matchesId && matchesName && matchesPhone && matchesRole && matchesStatus;
+  });
+
+  renderEmployeesTable(filtered);
 }
 
 function renderEmployeesTable(employees) {

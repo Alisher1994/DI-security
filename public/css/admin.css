@@ -963,3 +963,29 @@ input:checked+.slider:before {
     text-align: right;
     font-size: 0.75rem;
 }
+
+/* Table Filters */
+.filter-row th {
+    padding: 8px !important;
+    background: var(--bg-tertiary) !important;
+}
+
+.filter-input {
+    width: 100%;
+    padding: 6px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 0.75rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.filter-input:focus {
+    border-color: var(--primary);
+}
+
+select.filter-input {
+    cursor: pointer;
+}
