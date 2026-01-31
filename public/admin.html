@@ -129,7 +129,7 @@
             <div id="realtime-page" class="page-content">
                 <div class="map-header">
                     <div class="map-controls">
-                        <button id="refresh-map" class="btn btn-primary">
+                        <button id="refresh-map" class="btn btn-primary" onclick="loadRealtimeMap()">
                             <span class="btn-icon">🔄</span> Обновить
                         </button>
                         <button class="btn btn-success" id="territory-btn" onclick="toggleTerritoryEditMode()">
@@ -236,6 +236,7 @@
                                 <th>ФИО</th>
                                 <th>Телефон</th>
                                 <th>Роль</th>
+                                <th>Статус</th>
                                 <th>Действия</th>
                             </tr>
                         </thead>

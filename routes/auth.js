@@ -70,7 +70,7 @@ router.post('/login', [
     try {
         // Поиск пользователя по телефону
         const result = await pool.query(
-            'SELECT id, phone, password_hash, first_name, last_name, patronymic, full_name, role FROM users WHERE phone = $1',
+            'SELECT id, phone, password_hash, first_name, last_name, patronymic, full_name, role, is_active FROM users WHERE phone = $1',
             [phone]
         );
 
@@ -79,6 +79,12 @@ router.post('/login', [
         }
 
         const user = result.rows[0];
+
+        // Проверка блокировки
+        if (user.is_active === false) {
+            console.warn(`🛑 Попытка входа заблокированного пользователя: ${phone}`);
+            return res.status(403).json({ error: 'Ваша учетная запись заблокирована. Обратитесь к администратору.' });
+        }
 
         // Проверка пароля
         const isValidPassword = await bcrypt.compare(password, user.password_hash);

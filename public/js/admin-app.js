@@ -1330,6 +1330,17 @@ function renderEmployeesTable(employees) {
         </span>
       </td>
       <td>
+        <div class="employee-status-container">
+          <label class="switch">
+            <input type="checkbox" ${emp.is_active !== false ? 'checked' : ''} 
+                   ${emp.id === currentUser.id ? 'disabled' : ''} 
+                   onchange="toggleEmployeeStatus(${emp.id}, this.checked)">
+            <span class="slider"></span>
+          </label>
+          <span class="status-label">${emp.is_active !== false ? 'Активен' : 'Заблокир.'}</span>
+        </div>
+      </td>
+      <td>
         <button class="btn btn-secondary btn-icon" onclick="editEmployee(${emp.id})" title="Редактировать">✏️</button>
         ${emp.id !== currentUser.id ? `<button class="btn btn-danger btn-icon" onclick="deleteEmployee(${emp.id})" title="Удалить">🗑️</button>` : ''}
       </td>
@@ -1445,17 +1456,32 @@ async function editEmployee(id) {
 }
 
 async function deleteEmployee(id) {
-  if (!confirm('Удалить сотрудника?')) return;
-
-  try {
-    await apiRequest(`/employees/${id}`, { method: 'DELETE' });
-    showNotification('Сотрудник удален', 'success');
-    loadEmployees();
-  } catch (error) {
-    showNotification(error.message, 'error');
+  if (confirm('Вы уверены, что хотите удалить этого сотрудника? Все его старые сессии останутся в истории.')) {
+    try {
+      await apiRequest(`/employees/${id}`, { method: 'DELETE' });
+      showNotification('Сотрудник успешно удален');
+      loadEmployees();
+    } catch (error) {
+      console.error('Failed to delete employee:', error);
+      showNotification('Ошибка при удалении', 'error');
+    }
   }
 }
 
+async function toggleEmployeeStatus(id, isActive) {
+  try {
+    await apiRequest(`/employees/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_active: isActive })
+    });
+    showNotification(isActive ? 'Сотрудник разблокирован' : 'Сотрудник заблокирован');
+    loadEmployees(); // Перегружаем таблицу, чтобы обновить надписи
+  } catch (error) {
+    console.error('Failed to toggle employee status:', error);
+    showNotification('Ошибка при смене статуса', 'error');
+    loadEmployees(); // Возвращаем переключатель в исходное состояние при ошибке
+  }
+}
 // Excel Export/Import Functions
 async function exportEmployeesToXLSX() {
   try {

@@ -27,7 +27,7 @@ router.get('/', authenticateToken, authorizeRole('admin'), async (req, res) => {
     try {
         const { role } = req.query;
 
-        let query = 'SELECT id, phone, first_name, last_name, patronymic, full_name, role, created_at FROM users WHERE 1=1';
+        let query = 'SELECT id, phone, first_name, last_name, patronymic, full_name, role, is_active, created_at FROM users WHERE 1=1';
         const values = [];
         let counter = 1;
 
@@ -249,6 +249,35 @@ router.delete('/:id', authenticateToken, authorizeRole('admin'), async (req, res
         res.json({ message: 'Сотрудник удален' });
     } catch (error) {
         console.error('Ошибка при удалении сотрудника:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Переключение статуса активности сотрудника (блокировка)
+router.patch('/:id/status', authenticateToken, authorizeRole('admin'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { is_active } = req.body;
+
+        if (parseInt(id) === req.user.id) {
+            return res.status(400).json({ error: 'Вы не можете заблокировать самого себя' });
+        }
+
+        const result = await pool.query(
+            'UPDATE users SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, is_active',
+            [is_active, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Сотрудник не найден' });
+        }
+
+        res.json({
+            message: is_active ? 'Сотрудник разблокирован' : 'Сотрудник заблокирован',
+            employee: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Ошибка при смене статуса сотрудника:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
