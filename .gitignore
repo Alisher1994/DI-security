@@ -7,3 +7,15 @@ npm-debug.log*
 dist/
 coverage/
 .railway/
+
+# Большие файлы и установщики
+*.iso
+*.torrent
+*.exe
+*.msi
+*.dmg
+
+# Резервные копии
+*.bak
+*.backup
+*~
