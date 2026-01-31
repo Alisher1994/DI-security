@@ -152,28 +152,36 @@ function setupNavigation() {
   });
 }
 
+function safeAddEventListener(id, event, handler) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener(event, handler);
+  } else {
+    console.warn(`⚠️ Элемент с id "${id}" не найден в DOM. Событие "${event}" не привязано.`);
+  }
+}
+
 function setupEventListeners() {
-  document.getElementById('logout-btn').addEventListener('click', handleLogout);
-  document.getElementById('refresh-map').addEventListener('click', loadRealtimeMap);
-  document.getElementById('add-checkpoint-map').addEventListener('click', () => {
+  safeAddEventListener('logout-btn', 'click', handleLogout);
+  safeAddEventListener('refresh-map', 'click', loadRealtimeMap);
+  safeAddEventListener('add-checkpoint-map', 'click', () => {
     showNotification('Кликните на карту, чтобы выбрать место для новой точки', 'info');
-    // Мы можем просто открыть модалку, но лучше дать пользователю кликнуть на карте
-    // Для простоты пока просто открываем модалку, но с функционалом клика на самой карте Realtime позже.
     showCheckpointModal();
   });
-  document.getElementById('addCheckpoint').addEventListener('click', () => showCheckpointModal());
-  document.getElementById('addEmployee').addEventListener('click', () => showEmployeeModal());
-  document.getElementById('applyScanFilter').addEventListener('click', loadScans);
-  document.getElementById('clearScanFilter').addEventListener('click', clearScanFilter);
-  document.getElementById('exportScans').addEventListener('click', exportScansToCSV);
+  safeAddEventListener('addCheckpoint', 'click', () => showCheckpointModal());
+  safeAddEventListener('addEmployee', 'click', () => showEmployeeModal());
+  safeAddEventListener('applyScanFilter', 'click', loadScans);
+  safeAddEventListener('clearScanFilter', 'click', clearScanFilter);
+  safeAddEventListener('exportScans', 'click', exportScansToCSV);
 
   // Excel import/export
-  document.getElementById('exportEmployees').addEventListener('click', exportEmployeesToXLSX);
-  document.getElementById('downloadTemplate').addEventListener('click', downloadImportTemplate);
-  document.getElementById('importEmployeesBtn').addEventListener('click', () => {
-    document.getElementById('importFile').click();
+  safeAddEventListener('exportEmployees', 'click', exportEmployeesToXLSX);
+  safeAddEventListener('downloadTemplate', 'click', downloadImportTemplate);
+  safeAddEventListener('importEmployeesBtn', 'click', () => {
+    const fileInput = document.getElementById('importFile');
+    if (fileInput) fileInput.click();
   });
-  document.getElementById('importFile').addEventListener('change', importEmployeesFromXLSX);
+  safeAddEventListener('importFile', 'change', importEmployeesFromXLSX);
 }
 
 function handleLogout() {

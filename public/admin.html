@@ -129,13 +129,13 @@
             <div id="realtime-page" class="page-content">
                 <div class="map-header">
                     <div class="map-controls">
-                        <button class="btn btn-primary" onclick="loadRealtimeMap()">
+                        <button id="refresh-map" class="btn btn-primary">
                             <span class="btn-icon">🔄</span> Обновить
                         </button>
                         <button class="btn btn-success" id="territory-btn" onclick="toggleTerritoryEditMode()">
                             <span class="btn-icon">📐</span> Граница территории
                         </button>
-                        <button class="btn btn-success" onclick="showCheckpointModal()">
+                        <button id="add-checkpoint-map" class="btn btn-success">
                             <span class="btn-icon">➕</span> Добавить QR
                         </button>
                     </div>
@@ -249,7 +249,7 @@
     <!-- Modals will be added dynamically -->
     <div id="modalContainer"></div>
 
-    <script src="/js/admin-app.js?v=2.1"></script>
+    <script src="/js/admin-app.js?v=2.2"></script>
 </body>
 
 </html>

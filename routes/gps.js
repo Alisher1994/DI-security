@@ -155,10 +155,20 @@ router.post('/track', [
 // Получение активных патрулей (real-time для админа)
 router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res) => {
     try {
-        // Получаем территорию
-        const territoryResult = await pool.query("SELECT value FROM global_settings WHERE key = 'territory_polygon'");
-        const polygon = territoryResult.rows.length > 0 ? territoryResult.rows[0].value : [];
+        // Проверка таблицы настроек
+        let polygon = [];
+        try {
+            const territoryResult = await pool.query("SELECT value FROM global_settings WHERE key = 'territory_polygon'");
+            if (territoryResult.rows.length > 0) {
+                polygon = territoryResult.rows[0].value;
+                // Если данные пришли в виде строки, парсим их
+                if (typeof polygon === 'string') polygon = JSON.parse(polygon);
+            }
+        } catch (e) {
+            console.warn('⚠️ Таблица global_settings не найдена или пуста:', e.message);
+        }
 
+        // Оптимизированный запрос: берем последнюю точку трека для каждого активного патруля
         const result = await pool.query(`
       SELECT DISTINCT ON (u.id)
         u.id, u.full_name, u.role,
@@ -166,42 +176,51 @@ router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res
         g.latitude, g.longitude, g.accuracy, g.speed, g.recorded_at,
         s.shift_date, s.shift_start, s.shift_end
       FROM users u
-      JOIN patrol_sessions ps ON u.id = ps.user_id AND ps.is_active = true
+      INNER JOIN patrol_sessions ps ON u.id = ps.user_id AND ps.is_active = true
       LEFT JOIN shifts s ON ps.shift_id = s.id
-      LEFT JOIN gps_tracks g ON u.id = g.user_id AND g.recorded_at = (
-          SELECT MAX(recorded_at) FROM gps_tracks WHERE user_id = u.id
-      )
-      ORDER BY u.id, g.recorded_at DESC
+      LEFT JOIN gps_tracks g ON u.id = g.user_id
+      ORDER BY u.id, g.recorded_at DESC NULLS LAST
     `);
 
         let activePatrols = result.rows;
 
         // Если полигон задан, фильтруем сотрудников вне зоны
-        if (polygon && polygon.length >= 3) {
+        if (Array.isArray(polygon) && polygon.length >= 3) {
             activePatrols = activePatrols.filter(patrol => {
-                if (!patrol.latitude || !patrol.longitude) return true; // Если нет координат, оставляем в списке (может только зашел)
+                // Если у патрульного нет координат, он считается "в процессе загрузки" и отображается
+                if (patrol.latitude === null || patrol.longitude === null) return true;
 
-                return isPointInPolygon(
-                    [parseFloat(patrol.latitude), parseFloat(patrol.longitude)],
-                    polygon
-                );
+                try {
+                    return isPointInPolygon(
+                        [parseFloat(patrol.latitude), parseFloat(patrol.longitude)],
+                        polygon
+                    );
+                } catch (e) {
+                    console.error('Ошибка проверки полигона для юзера:', patrol.id, e);
+                    return true;
+                }
             });
         }
 
         res.json({ active_patrols: activePatrols });
     } catch (error) {
         console.error('Ошибка при получении активных патрулей:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
+        res.status(500).json({ error: 'Ошибка сервера: ' + error.message });
     }
 });
 
 // Хелпер для проверки точки в полигоне
 function isPointInPolygon(point, polygon) {
+    if (!Array.isArray(polygon) || polygon.length < 3) return true;
+
     const x = point[0], y = point[1];
     let inside = false;
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const xi = polygon[i][0], yi = polygon[i][1];
-        const xj = polygon[j][0], yj = polygon[j][1];
+        const xi = parseFloat(polygon[i][0]), yi = parseFloat(polygon[i][1]);
+        const xj = parseFloat(polygon[j][0]), yj = parseFloat(polygon[j][1]);
+
+        if (isNaN(xi) || isNaN(yi) || isNaN(xj) || isNaN(yj)) continue;
+
         const intersect = ((yi > y) !== (yj > y))
             && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
         if (intersect) inside = !inside;
