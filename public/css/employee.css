@@ -580,9 +580,11 @@ body {
   max-width: 500px;
   width: 100%;
   max-height: 90vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--border-color);
+  overflow: hidden;
 }
 
 .modal-header {
@@ -621,6 +623,23 @@ body {
 
 .modal-body {
   padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+#qr-reader {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+#qr-reader video {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 0.5rem;
 }
 
 .manual-input {
@@ -636,12 +655,12 @@ body {
 }
 
 .manual-input .manual-input-group {
-  display: flex;
-  gap: 0.5rem;
+  display: block;
+  margin-bottom: 1rem;
 }
 
 .manual-input input {
-  flex: 1;
+  width: 100%;
   padding: 0.75rem 1rem;
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
@@ -654,7 +673,13 @@ body {
 }
 
 .manual-input button {
-  white-space: nowrap;
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+}
+
+.btn-full-width {
+  width: 100%;
 }
 
 .scan-result {
