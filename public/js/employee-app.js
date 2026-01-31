@@ -182,7 +182,7 @@ async function initializeMainScreen() {
     // Show patrol controls if user is patrol
     if (currentUser.role === 'patrol') {
         document.getElementById('patrol-controls').style.display = 'block';
-        document.getElementById('map-section').style.display = 'block';
+        // Карта и сканер будут показаны только при активной сессии
         initializeMap();
     }
 
@@ -221,6 +221,7 @@ async function checkActiveSession() {
             document.getElementById('session-inactive').style.display = 'none';
             document.getElementById('session-active').style.display = 'block';
             document.getElementById('scanner-section').style.display = 'block';
+            document.getElementById('map-section').style.display = 'block';
 
             // Запускаем GPS и Таймер (с учетом времени начала сессии)
             startGPSTracking();
@@ -252,6 +253,7 @@ function getRoleLabel(role) {
 
 // Patrol Session Management
 async function startPatrolSession(isAuto = false) {
+    const actuallyAuto = isAuto === true; // Проверка, что это не объект события
     try {
         const data = await apiRequest('/gps/session/start', {
             method: 'POST'
@@ -263,6 +265,7 @@ async function startPatrolSession(isAuto = false) {
         document.getElementById('session-inactive').style.display = 'none';
         document.getElementById('session-active').style.display = 'block';
         document.getElementById('scanner-section').style.display = 'block';
+        document.getElementById('map-section').style.display = 'block';
 
         // Start GPS tracking
         startGPSTracking();
@@ -270,11 +273,11 @@ async function startPatrolSession(isAuto = false) {
         // Start session timer
         startSessionTimer();
 
-        if (!isAuto) {
+        if (!actuallyAuto) {
             showNotification('Патрулирование начато', 'success');
         }
     } catch (error) {
-        if (!isAuto) {
+        if (!actuallyAuto) {
             showNotification(error.message, 'error');
         }
         console.error('Ошибка старта патруля:', error);
@@ -296,6 +299,7 @@ async function stopPatrolSession() {
         document.getElementById('session-inactive').style.display = 'block';
         document.getElementById('session-active').style.display = 'none';
         document.getElementById('scanner-section').style.display = 'none';
+        document.getElementById('map-section').style.display = 'none';
 
         // Stop GPS tracking
         if (gpsWatchId) {
