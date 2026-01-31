@@ -140,7 +140,7 @@ router.put('/:id', [
 
     const { id } = req.params;
     const { role: currentRole, id: currentUserId } = req.user;
-    const { phone, first_name, last_name, patronymic, password, role } = req.body;
+    const { phone, first_name, last_name, patronymic, password, role, is_active } = req.body;
 
     try {
         // Не админ может обновить только свои данные (и не может изменить роль)
@@ -200,6 +200,10 @@ router.put('/:id', [
             updates.push(`role = $${counter++}`);
             values.push(role);
         }
+        if (is_active !== undefined && currentRole === 'admin') {
+            updates.push(`is_active = $${counter++}`);
+            values.push(is_active);
+        }
 
         if (updates.length === 0) {
             return res.status(400).json({ error: 'Нет данных для обновления' });
@@ -249,35 +253,6 @@ router.delete('/:id', authenticateToken, authorizeRole('admin'), async (req, res
         res.json({ message: 'Сотрудник удален' });
     } catch (error) {
         console.error('Ошибка при удалении сотрудника:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
-    }
-});
-
-// Переключение статуса активности сотрудника (блокировка)
-router.patch('/:id/status', authenticateToken, authorizeRole('admin'), async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { is_active } = req.body;
-
-        if (parseInt(id) === req.user.id) {
-            return res.status(400).json({ error: 'Вы не можете заблокировать самого себя' });
-        }
-
-        const result = await pool.query(
-            'UPDATE users SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, is_active',
-            [is_active, id]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Сотрудник не найден' });
-        }
-
-        res.json({
-            message: is_active ? 'Сотрудник разблокирован' : 'Сотрудник заблокирован',
-            employee: result.rows[0]
-        });
-    } catch (error) {
-        console.error('Ошибка при смене статуса сотрудника:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });

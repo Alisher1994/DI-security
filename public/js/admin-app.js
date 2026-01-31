@@ -349,10 +349,16 @@ function renderRecentScans(scans) {
 
 // Realtime Map
 async function loadRealtimeMap() {
+  const refreshBtn = document.getElementById('refresh-map');
+  const icon = refreshBtn?.querySelector('.btn-icon');
+
+  if (icon) icon.classList.add('fa-spin-custom'); // Добавим анимацию если нужно
+
   try {
     const [checkpoints, activePatrols] = await Promise.all([
       apiRequest('/checkpoints'),
-      apiRequest('/gps/active')
+      apiRequest('/gps/active'),
+      loadTerritory() // Обновляем и территорию тоже
     ]);
 
     if (!realtimeMap) {
@@ -361,9 +367,13 @@ async function loadRealtimeMap() {
 
     renderRealtimeMap(checkpoints.checkpoints, activePatrols.active_patrols);
     renderActivePatrolsList(activePatrols.active_patrols);
+
+    showNotification('Данные карты обновлены', 'success');
   } catch (error) {
     console.error('Failed to load realtime map:', error);
     showNotification('Ошибка загрузки карты', 'error');
+  } finally {
+    if (icon) icon.classList.remove('fa-spin-custom');
   }
 }
 
@@ -1330,15 +1340,10 @@ function renderEmployeesTable(employees) {
         </span>
       </td>
       <td>
-        <div class="employee-status-container">
-          <label class="switch">
-            <input type="checkbox" ${emp.is_active !== false ? 'checked' : ''} 
-                   ${emp.id === currentUser.id ? 'disabled' : ''} 
-                   onchange="toggleEmployeeStatus(${emp.id}, this.checked)">
-            <span class="slider"></span>
-          </label>
-          <span class="status-label">${emp.is_active !== false ? 'Активен' : 'Заблокир.'}</span>
-        </div>
+        <label class="switch">
+          <input type="checkbox" ${emp.is_active ? 'checked' : ''} onchange="toggleEmployeeStatus(${emp.id}, this.checked)">
+          <span class="slider"></span>
+        </label>
       </td>
       <td>
         <button class="btn btn-secondary btn-icon" onclick="editEmployee(${emp.id})" title="Редактировать">✏️</button>
@@ -1346,6 +1351,20 @@ function renderEmployeesTable(employees) {
       </td>
     </tr>
   `).join('');
+}
+
+async function toggleEmployeeStatus(id, isActive) {
+  try {
+    await apiRequest(`/employees/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ is_active: isActive })
+    });
+    showNotification(isActive ? 'Сотрудник разблокирован' : 'Сотрудник заблокирован', 'success');
+  } catch (error) {
+    console.error('Failed to toggle employee status:', error);
+    showNotification('Ошибка изменения статуса', 'error');
+    loadEmployees(); // Reload to reset the toggle UI
+  }
 }
 
 function getRoleLabel(role) {
@@ -1456,32 +1475,17 @@ async function editEmployee(id) {
 }
 
 async function deleteEmployee(id) {
-  if (confirm('Вы уверены, что хотите удалить этого сотрудника? Все его старые сессии останутся в истории.')) {
-    try {
-      await apiRequest(`/employees/${id}`, { method: 'DELETE' });
-      showNotification('Сотрудник успешно удален');
-      loadEmployees();
-    } catch (error) {
-      console.error('Failed to delete employee:', error);
-      showNotification('Ошибка при удалении', 'error');
-    }
+  if (!confirm('Удалить сотрудника?')) return;
+
+  try {
+    await apiRequest(`/employees/${id}`, { method: 'DELETE' });
+    showNotification('Сотрудник удален', 'success');
+    loadEmployees();
+  } catch (error) {
+    showNotification(error.message, 'error');
   }
 }
 
-async function toggleEmployeeStatus(id, isActive) {
-  try {
-    await apiRequest(`/employees/${id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ is_active: isActive })
-    });
-    showNotification(isActive ? 'Сотрудник разблокирован' : 'Сотрудник заблокирован');
-    loadEmployees(); // Перегружаем таблицу, чтобы обновить надписи
-  } catch (error) {
-    console.error('Failed to toggle employee status:', error);
-    showNotification('Ошибка при смене статуса', 'error');
-    loadEmployees(); // Возвращаем переключатель в исходное состояние при ошибке
-  }
-}
 // Excel Export/Import Functions
 async function exportEmployeesToXLSX() {
   try {
