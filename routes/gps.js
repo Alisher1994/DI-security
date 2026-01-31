@@ -153,17 +153,42 @@ router.post('/track', [
 // Получение активных патрулей (real-time для админа)
 router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res) => {
     try {
+        // Получаем всех пользователей, у которых есть либо активная сессия, 
+        // либо активность (GPS или сканы) за последние 30 минут
         const result = await pool.query(`
-      SELECT DISTINCT ON (u.id)
+      WITH recent_activity AS (
+        -- Последние GPS координаты
+        SELECT DISTINCT ON (user_id) 
+          user_id, latitude, longitude, accuracy, recorded_at, 'gps' as activity_type
+        FROM gps_tracks
+        WHERE recorded_at > NOW() - INTERVAL '30 minutes'
+        ORDER BY user_id, recorded_at DESC
+        
+        UNION ALL
+        
+        -- Последние сканирования
+        SELECT DISTINCT ON (user_id)
+          user_id, latitude, longitude, 0 as accuracy, scan_time as recorded_at, 'scan' as activity_type
+        FROM scans
+        WHERE scan_time > NOW() - INTERVAL '30 minutes'
+        ORDER BY user_id, scan_time DESC
+      ),
+      latest_activity AS (
+        SELECT DISTINCT ON (user_id) *
+        FROM recent_activity
+        ORDER BY user_id, recorded_at DESC
+      )
+      SELECT 
         u.id, u.full_name, u.role,
-        ps.id as session_id, ps.session_start,
-        g.latitude, g.longitude, g.accuracy, g.speed, g.recorded_at,
+        ps.id as session_id, ps.session_start, ps.is_active as session_is_active,
+        la.latitude, la.longitude, la.accuracy, la.recorded_at, la.activity_type,
         s.shift_date, s.shift_start, s.shift_end
       FROM users u
-      JOIN patrol_sessions ps ON u.id = ps.user_id AND ps.is_active = true
-      JOIN shifts s ON ps.shift_id = s.id
-      LEFT JOIN gps_tracks g ON u.id = g.user_id AND g.shift_id = s.id
-      ORDER BY u.id, g.recorded_at DESC
+      LEFT JOIN patrol_sessions ps ON u.id = ps.user_id AND ps.is_active = true
+      LEFT JOIN latest_activity la ON u.id = la.user_id
+      LEFT JOIN shifts s ON ps.shift_id = s.id
+      WHERE (ps.is_active = true OR la.recorded_at IS NOT NULL)
+      AND u.role IN ('kpp', 'patrol')
     `);
 
         res.json({ active_patrols: result.rows });

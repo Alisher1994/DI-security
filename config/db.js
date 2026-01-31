@@ -12,8 +12,13 @@ const pool = new Pool({
 });
 
 // Тест подключения
-pool.on('connect', () => {
+pool.on('connect', async (client) => {
   console.log('✅ Подключено к PostgreSQL');
+  try {
+    await client.query("SET timezone = 'Asia/Tashkent'");
+  } catch (err) {
+    console.error('Ошибка установки часового пояса:', err);
+  }
 });
 
 pool.on('error', (err) => {

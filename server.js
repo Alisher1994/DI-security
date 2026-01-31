@@ -19,6 +19,9 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
+// Настройка часового пояса для всей системы
+process.env.TZ = 'Asia/Tashkent';
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 

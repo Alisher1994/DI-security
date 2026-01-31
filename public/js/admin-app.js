@@ -393,10 +393,15 @@ function renderRealtimeMap(checkpoints, patrols) {
       iconCaption: cp.name,
       balloonContent: `
         <div style="min-width: 200px; padding: 5px; color: #1e293b;">
-            <strong style="font-size: 1.1rem; display: block; margin-bottom: 5px;">${cp.name}</strong>
-            <div style="margin-bottom: 10px; color: #64748b; font-size: 0.85rem;">
-                ${cp.checkpoint_type === 'kpp' ? '🔴 КПП' : '🟢 Патруль'}<br>
-                ${cp.description || ''}
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <div id="mini-qr-map-${cp.id}" style="cursor: pointer; border: 1px solid #e2e8f0; padding: 4px; border-radius: 4px; background: white;" onclick="viewQRCode(${cp.id})"></div>
+                <div style="flex: 1;">
+                    <strong style="font-size: 1.1rem; display: block; margin-bottom: 5px;">${cp.name}</strong>
+                    <div style="color: #64748b; font-size: 0.85rem;">
+                        ${cp.checkpoint_type === 'kpp' ? '🔴 КПП' : '🟢 Патруль'}<br>
+                        ${cp.description || ''}
+                    </div>
+                </div>
             </div>
             
             <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.05); padding: 8px; border-radius: 6px; margin-bottom: 10px;">
@@ -423,6 +428,21 @@ function renderRealtimeMap(checkpoints, patrols) {
     });
 
     realtimeMap.geoObjects.add(marker);
+
+    // Generate mini QR for map balloon after it's opened
+    marker.events.add('balloonopen', () => {
+      setTimeout(() => {
+        const el = document.getElementById(`mini-qr-map-${cp.id}`);
+        if (el && el.innerHTML === '') {
+          new QRCode(el, {
+            text: cp.qr_code_data || cp.short_code,
+            width: 48,
+            height: 48,
+            correctLevel: QRCode.CorrectLevel.L
+          });
+        }
+      }, 100);
+    });
 
     // Добавляем радиус только если точка активна
     if (cp.is_active) {
@@ -457,8 +477,12 @@ function renderRealtimeMap(checkpoints, patrols) {
             <div style="font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">👮</div>
             <div style="background: rgba(15, 23, 42, 0.95); color: white; padding: 4px 10px; border-radius: 8px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; min-width: 100px;">
                 <div style="font-weight: 800; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.2); margin-bottom: 4px; padding-bottom: 2px;">${patrol.full_name}</div>
-                <div style="opacity: 0.9; font-weight: 600; color: #10b981; font-size: 9px;">● Онлайн</div>
-                <div style="opacity: 0.7; font-size: 9px; margin-top: 2px;">${new Date(patrol.recorded_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
+                <div style="opacity: 0.9; font-weight: 600; color: #10b981; font-size: 9px;">
+                    ● ${patrol.activity_type === 'scan' ? 'Скан QR' : 'Онлайн'}
+                </div>
+                <div style="opacity: 0.7; font-size: 9px; margin-top: 2px;">
+                    ${new Date(patrol.recorded_at).toLocaleTimeString('ru-RU', { timeZone: 'Asia/Tashkent', hour: '2-digit', minute: '2-digit' })}
+                </div>
             </div>
            </div>`
         )
@@ -707,11 +731,14 @@ function renderCheckpointsGrid(checkpoints) {
   }
 
   grid.innerHTML = checkpoints.map(cp => `
-    <div class="checkpoint-card">
+    <div class="checkpoint-card" style="display: flex; flex-direction: column;">
       <div class="card-header">
-        <div>
-          <div class="card-title">${cp.name}</div>
-          <div class="card-subtitle">${cp.checkpoint_type === 'kpp' ? 'КПП' : 'Точка патруля'}</div>
+        <div style="display: flex; align-items: flex-start; gap: 12px; flex: 1;">
+          <div id="mini-qr-${cp.id}" style="cursor: pointer; border: 1px solid #e2e8f0; padding: 4px; border-radius: 8px; background: white; flex-shrink: 0;" onclick="viewQRCode(${cp.id})"></div>
+          <div>
+            <div class="card-title">${cp.name}</div>
+            <div class="card-subtitle">${cp.checkpoint_type === 'kpp' ? 'КПП' : 'Точка патруля'}</div>
+          </div>
         </div>
         <div class="card-status-toggle">
           <label class="switch">
@@ -736,13 +763,26 @@ function renderCheckpointsGrid(checkpoints) {
           </div>
         </div>
       </div>
-      <div class="card-actions">
+      <div class="card-actions" style="margin-top: auto;">
         <button class="btn btn-secondary btn-icon" onclick="viewQRCode(${cp.id})" title="QR-код и печать">📷</button>
         <button class="btn btn-secondary btn-icon" onclick="editCheckpoint(${cp.id})" title="Редактировать">✏️</button>
         <button class="btn btn-danger btn-icon" onclick="deleteCheckpoint(${cp.id})" title="Удалить">🗑️</button>
       </div>
     </div>
   `).join('');
+
+  // Generate mini QR codes for each card
+  checkpoints.forEach(cp => {
+    const el = document.getElementById(`mini-qr-${cp.id}`);
+    if (el) {
+      new QRCode(el, {
+        text: cp.qr_code_data || cp.short_code,
+        width: 48,
+        height: 48,
+        correctLevel: QRCode.CorrectLevel.L
+      });
+    }
+  });
 }
 
 async function viewQRCode(id) {
@@ -752,18 +792,18 @@ async function viewQRCode(id) {
     showModal({
       title: `QR-код: ${data.name}`,
       content: `
-        <div style="text-align: center; padding: 2rem;">
-          <img src="${data.qr_code}" alt="QR Code" style="max-width: 250px; height: auto; border-radius: 1rem; border: 1px solid var(--border);">
+        <div style="text-align: center; padding: 1rem; max-width: 100%; overflow-x: hidden;">
+          <img src="${data.qr_code}" alt="QR Code" style="width: 100%; max-width: 300px; height: auto; border-radius: 1.5rem; border: 1px solid var(--border); box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
           <div style="margin-top: 1.5rem;">
-            <div style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Код для ручного ввода:</div>
-            <div style="font-size: 2.5rem; font-weight: bold; color: var(--text-primary); letter-spacing: 5px;">${data.short_code}</div>
+            <div style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.25rem;">Код для ручного ввода:</div>
+            <div style="font-size: 3rem; font-weight: 800; color: var(--text-primary); letter-spacing: 4px; line-height: 1;">${data.short_code}</div>
           </div>
-          <div style="margin-top: 2rem; display: flex; flex-direction: column; gap: 0.75rem;">
-            <button class="btn btn-primary" onclick="window.open('/print-qr.html?id=${id}&token=${authToken}', '_blank')" style="width: 100%;">
-              🖨️ Скачать для печати (A4 Прямая печать)
+          <div style="margin-top: 2rem; display: flex; flex-direction: column; gap: 0.875rem;">
+            <button class="btn btn-primary" onclick="window.open('/print-qr.html?id=${id}&token=${authToken}', '_blank')" style="width: 100%; padding: 1rem;">
+                📄 Скачать PDF (Печать A4)
             </button>
-            <button class="btn btn-secondary" onclick="downloadQRCode('${data.qr_code}', '${data.name}')" style="width: 100%;">
-              💾 Скачать только QR
+            <button class="btn btn-secondary" onclick="downloadQRCode('${data.qr_code}', '${data.name}')" style="width: 100%; padding: 1rem;">
+                💾 Сохранить изображение QR
             </button>
           </div>
         </div>
