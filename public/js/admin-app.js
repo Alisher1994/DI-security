@@ -349,6 +349,12 @@ async function loadRealtimeMap() {
 }
 
 function initializeRealtimeMap() {
+  if (typeof ymaps === 'undefined') {
+    console.error('Yandex Maps API not loaded');
+    showNotification('Ошибка загрузки Yandex Maps API. Проверьте подключение к интернету.', 'error');
+    return;
+  }
+
   ymaps.ready(() => {
     realtimeMap = new ymaps.Map('realtime-map', {
       center: [41.204358, 69.234420],
