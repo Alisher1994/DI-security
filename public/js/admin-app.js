@@ -879,6 +879,11 @@ function showCheckpointModal(checkpoint = null) {
     onLoad: () => {
       // Initialize map inside timeout to ensure container is ready
       setTimeout(() => {
+        if (typeof ymaps === 'undefined') {
+          console.error('Yandex Maps API not loaded in modal');
+          return;
+        }
+
         const initialLat = parseFloat(checkpoint ? checkpoint.latitude : 41.204358);
         const initialLng = parseFloat(checkpoint ? checkpoint.longitude : 69.234420);
 
