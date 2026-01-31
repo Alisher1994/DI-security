@@ -209,6 +209,10 @@ async function checkActiveSession() {
             startSessionTimer(new Date(patrolSession.session_start));
 
             console.log('🔄 Сессия патрулирования восстановлена');
+        } else if (currentUser.role === 'patrol') {
+            // Если сессии нет, но роль патрульный - запускаем АВТОМАТИЧЕСКИ
+            console.log('🚀 Автоматический запуск патрулирования для:', currentUser.full_name);
+            await startPatrolSession(true); // true означает фоновый запуск без уведомления
         }
     } catch (error) {
         console.error('Ошибка при проверке активной сессии:', error);
@@ -229,7 +233,7 @@ function getRoleLabel(role) {
 
 
 // Patrol Session Management
-async function startPatrolSession() {
+async function startPatrolSession(isAuto = false) {
     try {
         const data = await apiRequest('/gps/session/start', {
             method: 'POST'
@@ -247,9 +251,14 @@ async function startPatrolSession() {
         // Start session timer
         startSessionTimer();
 
-        showNotification('Патрулирование начато', 'success');
+        if (!isAuto) {
+            showNotification('Патрулирование начато', 'success');
+        }
     } catch (error) {
-        showNotification(error.message, 'error');
+        if (!isAuto) {
+            showNotification(error.message, 'error');
+        }
+        console.error('Ошибка старта патруля:', error);
     }
 }
 

@@ -14,7 +14,7 @@ router.post('/session/start', authenticateToken, async (req, res) => {
         try {
             await client.query('BEGIN');
 
-            // Проверка активной смены
+            /* Проверка активной смены отключена по просьбе пользователя
             const now = new Date();
             const currentDate = now.toLocaleDateString('en-CA');
             const currentTime = now.toLocaleTimeString('en-GB', { hour12: false });
@@ -36,6 +36,8 @@ router.post('/session/start', authenticateToken, async (req, res) => {
             }
 
             const shift = shiftResult.rows[0];
+            */
+            const shiftId = null; // Смена больше не обязательна
 
             // Проверка существующей активной сессии
             const existingSession = await client.query(
@@ -51,10 +53,10 @@ router.post('/session/start', authenticateToken, async (req, res) => {
                 });
             }
 
-            // Создание новой сессии
+            // Создание новой сессии без привязки к обязательной смене
             const sessionResult = await client.query(
                 'INSERT INTO patrol_sessions (user_id, shift_id) VALUES ($1, $2) RETURNING *',
-                [userId, shift.id]
+                [userId, shiftId]
             );
 
             await client.query('COMMIT');
@@ -132,7 +134,7 @@ router.post('/track', [
 
         const session = sessionResult.rows[0];
 
-        // Сохранение GPS трека
+        // Сохранение GPS трека (shift_id теперь опционален)
         const result = await pool.query(
             `INSERT INTO gps_tracks (user_id, shift_id, latitude, longitude, accuracy, speed) 
        VALUES ($1, (SELECT shift_id FROM patrol_sessions WHERE id = $2), $3, $4, $5, $6) 
@@ -163,8 +165,6 @@ router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res
       JOIN patrol_sessions ps ON u.id = ps.user_id AND ps.is_active = true
       JOIN shifts s ON ps.shift_id = s.id
       LEFT JOIN gps_tracks g ON u.id = g.user_id AND g.shift_id = s.id
-      WHERE g.recorded_at IS NOT NULL 
-        AND g.recorded_at > NOW() - INTERVAL '10 minutes'
       ORDER BY u.id, g.recorded_at DESC
     `);
 
