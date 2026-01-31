@@ -9,6 +9,7 @@ let checkpointMarkers = [];
 let gpsWatchId = null;
 let sessionInterval = null;
 let scanCount = 0;
+let territoryPolygon = []; // Охраняемая территория
 
 // Глобальная переменная для разблокировки звука
 let audioUnlocked = false;
@@ -177,6 +178,9 @@ async function initializeMainScreen() {
 
     // Load checkpoints
     await loadCheckpoints();
+
+    // Load territory
+    await loadTerritory();
 
     // Load scan history
     await loadScanHistory();
@@ -359,6 +363,9 @@ async function sendGPSUpdate(position) {
                 speed
             })
         });
+
+        // ПРОВЕРКА ГЕОЗОНЫ
+        checkGeofence(latitude, longitude);
     } catch (error) {
         console.error('Failed to send GPS update:', error);
     }
@@ -682,3 +689,44 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
+
+// УПРАВЛЕНИЕ ТЕРРИТОРИЕЙ (Geofencing)
+async function loadTerritory() {
+    try {
+        const data = await apiRequest('/gps/territory');
+        territoryPolygon = data.polygon || [];
+        console.log('📐 Территория загружена:', territoryPolygon.length, 'точек');
+    } catch (error) {
+        console.error('Failed to load territory:', error);
+    }
+}
+
+function checkGeofence(latitude, longitude) {
+    if (!territoryPolygon || territoryPolygon.length < 3) return; // Территория не задана
+
+    const isInside = isPointInPolygon([latitude, longitude], territoryPolygon);
+    const alertEl = document.getElementById('geofence-alert');
+
+    if (!isInside) {
+        if (alertEl.style.display === 'none') {
+            console.warn('🚨 СОТРУДНИК ВНЕ ЗОНЫ!');
+            alertEl.style.display = 'flex';
+        }
+    } else {
+        alertEl.style.display = 'none';
+    }
+}
+
+function isPointInPolygon(point, polygon) {
+    const x = point[0], y = point[1];
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i][0], yi = polygon[i][1];
+        const xj = polygon[j][0], yj = polygon[j][1];
+        const intersect = ((yi > y) !== (yj > y))
+            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+

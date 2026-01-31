@@ -127,15 +127,18 @@
 
             <!-- Realtime Map Page -->
             <div id="realtime-page" class="page-content">
-                <div class="map-controls">
-                    <button id="refresh-map" class="btn btn-primary">
-                        <span>🔄</span>
-                        <span>Обновить</span>
-                    </button>
-                    <button id="add-checkpoint-map" class="btn btn-success">
-                        <span>➕</span>
-                        <span>Добавить QR</span>
-                    </button>
+                <div class="map-header">
+                    <div class="map-controls">
+                        <button class="btn btn-primary" onclick="loadRealtimeMap()">
+                            <span class="btn-icon">🔄</span> Обновить
+                        </button>
+                        <button class="btn btn-success" id="territory-btn" onclick="toggleTerritoryEditMode()">
+                            <span class="btn-icon">📐</span> Граница территории
+                        </button>
+                        <button class="btn btn-success" onclick="showCheckpointModal()">
+                            <span class="btn-icon">➕</span> Добавить QR
+                        </button>
+                    </div>
                     <div class="map-legend">
                         <div class="legend-item">
                             <span class="legend-icon" style="font-size: 1.2rem; margin-right: 0.5rem;">👮</span>

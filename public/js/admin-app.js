@@ -7,6 +7,10 @@ let scansChart = null;
 let realtimeUpdateInterval = null;
 let mapProvider = 'leaflet'; // 'leaflet' (OpenStreetMap), 'yandex', 'google'
 let mapMarkers = []; // Хранение маркеров для Leaflet
+let territoryPolygon = []; // Координаты территории
+let territoryLayer = null; // Слой полигона на карте
+let isTerritoryEditMode = false;
+let territoryEditMarkers = []; // Маркеры границ при редактировании
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -392,8 +396,15 @@ function initializeRealtimeMap() {
     // Клик по карте для добавления точки
     realtimeMap.on('click', (e) => {
       const { lat, lng } = e.latlng;
-      showCheckpointModal({ latitude: lat.toFixed(6), longitude: lng.toFixed(6), is_new_from_map: true });
+      if (isTerritoryEditMode) {
+        addTerritoryPoint(lat, lng);
+      } else {
+        showCheckpointModal({ latitude: lat.toFixed(6), longitude: lng.toFixed(6), is_new_from_map: true });
+      }
     });
+
+    // Загружаем территорию
+    loadTerritory();
 
     return;
   }
@@ -413,6 +424,9 @@ function initializeRealtimeMap() {
       zoom: 14,
       controls: ['zoomControl', 'fullscreenControl', 'typeSelector']
     });
+
+    // Загружаем территорию для Яндекса (если нужно будет)
+    loadTerritory();
 
     // Правый клик для добавления точки
     realtimeMap.events.add('contextmenu', (e) => {
@@ -1782,6 +1796,133 @@ function formatDate(dateString) {
     month: '2-digit',
     year: 'numeric'
   });
+}
+
+// УПРАВЛЕНИЕ ТЕРРИТОРИЕЙ (Geofencing)
+
+async function loadTerritory() {
+  try {
+    const data = await apiRequest('/gps/territory');
+    territoryPolygon = data.polygon || [];
+    renderTerritory();
+  } catch (error) {
+    console.error('Ошибка загрузки территории:', error);
+  }
+}
+
+function renderTerritory() {
+  if (!realtimeMap) return;
+
+  // Очищаем старый слой
+  if (territoryLayer) {
+    if (mapProvider === 'leaflet') {
+      realtimeMap.removeLayer(territoryLayer);
+    } else if (mapProvider === 'yandex') {
+      realtimeMap.geoObjects.remove(territoryLayer);
+    }
+  }
+
+  if (!territoryPolygon || territoryPolygon.length < 3) return;
+
+  if (mapProvider === 'leaflet') {
+    territoryLayer = L.polygon(territoryPolygon, {
+      color: '#3b82f6',
+      fillColor: '#3b82f6',
+      fillOpacity: 0.1,
+      weight: 2,
+      dashArray: '5, 10'
+    }).addTo(realtimeMap);
+  } else if (mapProvider === 'yandex') {
+    territoryLayer = new ymaps.Polygon([territoryPolygon], {}, {
+      fillColor: '#3b82f620',
+      strokeColor: '#3b82f6',
+      strokeWidth: 2,
+      strokeStyle: 'dash'
+    });
+    realtimeMap.geoObjects.add(territoryLayer);
+  }
+}
+
+function toggleTerritoryEditMode() {
+  isTerritoryEditMode = !isTerritoryEditMode;
+  const btn = document.getElementById('territory-btn');
+
+  if (isTerritoryEditMode) {
+    btn.innerHTML = '<span class="btn-icon">💾</span> Сохранить';
+    btn.classList.add('btn-danger');
+    btn.classList.remove('btn-success');
+    showNotification('Кликайте по карте для создания границ. В конце нажмите Сохранить.', 'info');
+
+    // Очищаем текущий полигон для перерисовки
+    territoryPolygon = [];
+    if (territoryLayer) {
+      if (mapProvider === 'leaflet') realtimeMap.removeLayer(territoryLayer);
+      else if (mapProvider === 'yandex') realtimeMap.geoObjects.remove(territoryLayer);
+      territoryLayer = null;
+    }
+
+    // Очищаем старые маркеры редактирования
+    territoryEditMarkers.forEach(m => {
+      if (mapProvider === 'leaflet') m.remove();
+      else if (mapProvider === 'yandex') realtimeMap.geoObjects.remove(m);
+    });
+    territoryEditMarkers = [];
+
+  } else {
+    btn.innerHTML = '<span class="btn-icon">📐</span> Граница территории';
+    btn.classList.remove('btn-danger');
+    btn.classList.add('btn-success');
+    saveTerritory();
+  }
+}
+
+function addTerritoryPoint(lat, lng) {
+  territoryPolygon.push([lat, lng]);
+
+  // Визуализируем точку
+  if (mapProvider === 'leaflet') {
+    const marker = L.circleMarker([lat, lng], {
+      radius: 5,
+      color: '#ef4444',
+      fillColor: '#ef4444',
+      fillOpacity: 1
+    }).addTo(realtimeMap);
+    territoryEditMarkers.push(marker);
+
+    // Обновляем временный полигон
+    if (territoryPolygon.length >= 3) {
+      if (territoryLayer) realtimeMap.removeLayer(territoryLayer);
+      territoryLayer = L.polygon(territoryPolygon, { color: '#ef4444', weight: 2, fillOpacity: 0.2 }).addTo(realtimeMap);
+    }
+  }
+}
+
+async function saveTerritory() {
+  try {
+    if (territoryPolygon.length < 3) {
+      showNotification('Для создания зоны нужно минимум 3 точки', 'warning');
+      loadTerritory(); // Сбрасываем изменения
+      return;
+    }
+
+    await apiRequest('/gps/territory', {
+      method: 'POST',
+      body: JSON.stringify({ polygon: territoryPolygon })
+    });
+
+    showNotification('Границы территории успешно сохранены', 'success');
+
+    // Очищаем маркеры редактирования
+    territoryEditMarkers.forEach(m => {
+      if (mapProvider === 'leaflet') m.remove();
+    });
+    territoryEditMarkers = [];
+
+    renderTerritory();
+  } catch (error) {
+    console.error('Ошибка сохранения территории:', error);
+    showNotification('Не удалось сохранить территорию', 'error');
+  }
 }
 
 // Add modal and animation styles

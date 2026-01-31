@@ -155,6 +155,10 @@ router.post('/track', [
 // Получение активных патрулей (real-time для админа)
 router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res) => {
     try {
+        // Получаем территорию
+        const territoryResult = await pool.query("SELECT value FROM global_settings WHERE key = 'territory_polygon'");
+        const polygon = territoryResult.rows.length > 0 ? territoryResult.rows[0].value : [];
+
         const result = await pool.query(`
       SELECT DISTINCT ON (u.id)
         u.id, u.full_name, u.role,
@@ -170,9 +174,69 @@ router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res
       ORDER BY u.id, g.recorded_at DESC
     `);
 
-        res.json({ active_patrols: result.rows });
+        let activePatrols = result.rows;
+
+        // Если полигон задан, фильтруем сотрудников вне зоны
+        if (polygon && polygon.length >= 3) {
+            activePatrols = activePatrols.filter(patrol => {
+                if (!patrol.latitude || !patrol.longitude) return true; // Если нет координат, оставляем в списке (может только зашел)
+
+                return isPointInPolygon(
+                    [parseFloat(patrol.latitude), parseFloat(patrol.longitude)],
+                    polygon
+                );
+            });
+        }
+
+        res.json({ active_patrols: activePatrols });
     } catch (error) {
         console.error('Ошибка при получении активных патрулей:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Хелпер для проверки точки в полигоне
+function isPointInPolygon(point, polygon) {
+    const x = point[0], y = point[1];
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i][0], yi = polygon[i][1];
+        const xj = polygon[j][0], yj = polygon[j][1];
+        const intersect = ((yi > y) !== (yj > y))
+            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+// Получение настроек территории (полигона)
+router.get('/territory', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query("SELECT value FROM global_settings WHERE key = 'territory_polygon'");
+        const polygon = result.rows.length > 0 ? result.rows[0].value : [];
+        res.json({ polygon });
+    } catch (error) {
+        console.error('Ошибка при получении территории:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Сохранение настроек территории (только админ)
+router.post('/territory', authenticateToken, authorizeRole('admin'), async (req, res) => {
+    try {
+        const { polygon } = req.body;
+        if (!Array.isArray(polygon)) {
+            return res.status(400).json({ error: 'Полигон должен быть массивом координат' });
+        }
+
+        await pool.query(
+            "INSERT INTO global_settings (key, value) VALUES ('territory_polygon', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+            [JSON.stringify(polygon)]
+        );
+
+        res.json({ message: 'Территория успешно сохранена', polygon });
+    } catch (error) {
+        console.error('Ошибка при сохранении территории:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
