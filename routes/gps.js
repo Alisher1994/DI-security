@@ -163,8 +163,10 @@ router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res
         s.shift_date, s.shift_start, s.shift_end
       FROM users u
       JOIN patrol_sessions ps ON u.id = ps.user_id AND ps.is_active = true
-      JOIN shifts s ON ps.shift_id = s.id
-      LEFT JOIN gps_tracks g ON u.id = g.user_id AND g.shift_id = s.id
+      LEFT JOIN shifts s ON ps.shift_id = s.id
+      LEFT JOIN gps_tracks g ON u.id = g.user_id AND g.recorded_at = (
+          SELECT MAX(recorded_at) FROM gps_tracks WHERE user_id = u.id
+      )
       ORDER BY u.id, g.recorded_at DESC
     `);
 
