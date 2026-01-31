@@ -11,6 +11,11 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
+// Установка часового пояса для всех подключений
+pool.on('connect', (client) => {
+  client.query("SET timezone = 'Asia/Tashkent'");
+});
+
 // Тест подключения
 pool.on('connect', () => {
   console.log('✅ Подключено к PostgreSQL');

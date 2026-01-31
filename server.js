@@ -16,6 +16,8 @@ import gpsRoutes from './routes/gps.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Установка часового пояса
+process.env.TZ = 'Asia/Tashkent';
 
 dotenv.config();
 

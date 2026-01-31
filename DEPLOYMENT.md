@@ -100,6 +100,7 @@ JWT_SECRET=your-very-secure-secret-key-here
 YANDEX_MAPS_API_KEY=your-yandex-api-key
 PORT=3000
 QR_RADIUS_METERS=50
+TZ=Asia/Tashkent
 ```
 
 ### Шаг 5: Развертывание
