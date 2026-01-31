@@ -116,6 +116,11 @@ async function handleLogin(e) {
         localStorage.setItem('authToken', authToken);
         currentUser = data.user;
 
+        if (currentUser.role === 'admin') {
+            window.location.href = '/admin.html';
+            return;
+        }
+
         showScreen('main-screen');
         initializeMainScreen();
     } catch (error) {
@@ -148,6 +153,12 @@ async function loadUserData() {
     try {
         const data = await apiRequest('/auth/me');
         currentUser = data.user;
+
+        if (currentUser.role === 'admin') {
+            window.location.href = '/admin.html';
+            return;
+        }
+
         showScreen('main-screen');
         initializeMainScreen();
     } catch (error) {
