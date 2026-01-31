@@ -208,12 +208,17 @@ async function initializeMainScreen() {
 }
 
 async function checkActiveSession() {
+    console.log('🔍 Проверка активной сессии...');
     try {
         const data = await apiRequest('/gps/sessions?active_only=true');
-        const activeSessions = data.sessions.filter(s => s.is_active);
+        console.log('📡 Ответ сервера по сессиям:', data);
+
+        const activeSessions = (data.sessions || []).filter(s => s.is_active);
 
         if (activeSessions.length > 0) {
             patrolSession = activeSessions[0];
+            console.log('✅ Найдена активная сессия:', patrolSession.id);
+
             // Восстанавливаем счетчик сканов этой сессии
             scanCount = parseInt(patrolSession.scan_count) || 0;
 
@@ -226,17 +231,15 @@ async function checkActiveSession() {
             // Запускаем GPS и Таймер (с учетом времени начала сессии)
             startGPSTracking();
             startSessionTimer(new Date(patrolSession.session_start));
-
-            console.log('🔄 Сессия патрулирования восстановлена');
         } else {
-            // Гарантируем скрытие, если сессии нет
+            console.log('ℹ️ Активных сессий нет');
             document.getElementById('session-inactive').style.display = 'block';
             document.getElementById('session-active').style.display = 'none';
             document.getElementById('scanner-section').style.display = 'none';
             document.getElementById('map-section').style.display = 'none';
         }
     } catch (error) {
-        console.error('Ошибка при проверке активной сессии:', error);
+        console.error('❌ Ошибка при проверке активной сессии:', error);
     }
 }
 
@@ -279,9 +282,10 @@ async function startPatrolSession(isAuto = false) {
             showNotification('Патрулирование начато', 'success');
         }
     } catch (error) {
-        // Если сессия уже активна - просто синхронизируем UI
+        console.warn('⚠️ Ошибка старта патруля:', error.message);
+
+        // Если сессия уже активна - просто синхронизируем UI кнопкой
         if (error.message.includes('уже есть активная сессия')) {
-            console.log('⚠️ Сессия уже была активна, синхронизируем UI...');
             await checkActiveSession();
             return;
         }
@@ -289,7 +293,6 @@ async function startPatrolSession(isAuto = false) {
         if (!actuallyAuto) {
             showNotification(error.message, 'error');
         }
-        console.error('Ошибка старта патруля:', error);
     }
 }
 
