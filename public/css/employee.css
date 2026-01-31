@@ -801,7 +801,6 @@ body {
 @media (max-width: 768px) {
 
   .shift-details,
-  .session-stats,
   .location-info {
     grid-template-columns: 1fr;
   }
