@@ -173,27 +173,15 @@ router.get('/stats', authenticateToken, async (req, res) => {
         const result = await pool.query(query, values);
 
         // Статистика по пользователям
-        let userStatsQuery = `
+        const userStatsQuery = `
       SELECT 
         u.id, u.full_name, u.role,
         COUNT(s.id) as scan_count,
         MAX(s.scan_time) as last_scan
       FROM users u
-      LEFT JOIN scans s ON u.id = s.user_id`;
-
-        const userStatsConditions = [];
-        if (from_date) {
-            userStatsConditions.push(`s.scan_time >= $1`);
-        }
-        if (to_date) {
-            userStatsConditions.push(`s.scan_time <= $${from_date ? '2' : '1'}`);
-        }
-
-        if (userStatsConditions.length > 0) {
-            userStatsQuery += ` AND (${userStatsConditions.join(' AND ')})`;
-        }
-
-        userStatsQuery += `
+      LEFT JOIN scans s ON u.id = s.user_id
+      ${from_date ? 'AND s.scan_time >= $1' : ''}
+      ${to_date ? (from_date ? 'AND s.scan_time <= $2' : 'AND s.scan_time <= $1') : ''}
       WHERE u.role IN ('kpp', 'patrol')
       GROUP BY u.id, u.full_name, u.role
       ORDER BY scan_count DESC
