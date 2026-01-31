@@ -155,20 +155,19 @@ router.post('/track', [
 // Получение активных патрулей (real-time для админа)
 router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res) => {
     try {
-        // Проверка таблицы настроек
+        // Получаем территорию максимально безопасно
         let polygon = [];
         try {
-            const territoryResult = await pool.query("SELECT value FROM global_settings WHERE key = 'territory_polygon'");
-            if (territoryResult.rows.length > 0) {
-                polygon = territoryResult.rows[0].value;
-                // Если данные пришли в виде строки, парсим их
-                if (typeof polygon === 'string') polygon = JSON.parse(polygon);
+            const territoryResult = await pool.query("SELECT value::text FROM global_settings WHERE key = 'territory_polygon'");
+            if (territoryResult.rows.length > 0 && territoryResult.rows[0].value) {
+                const rawValue = territoryResult.rows[0].value;
+                polygon = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
             }
         } catch (e) {
-            console.warn('⚠️ Таблица global_settings не найдена или пуста:', e.message);
+            console.error('⚠️ Ошибка при чтении полигона из БД:', e.message);
+            polygon = []; // Продолжаем работу без фильтрации, если БД недоступна
         }
 
-        // Оптимизированный запрос: берем последнюю точку трека для каждого активного патруля
         const result = await pool.query(`
       SELECT DISTINCT ON (u.id)
         u.id, u.full_name, u.role,
@@ -184,10 +183,9 @@ router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res
 
         let activePatrols = result.rows;
 
-        // Если полигон задан, фильтруем сотрудников вне зоны
+        // Фильтрация (только если полигон валиден)
         if (Array.isArray(polygon) && polygon.length >= 3) {
             activePatrols = activePatrols.filter(patrol => {
-                // Если у патрульного нет координат, он считается "в процессе загрузки" и отображается
                 if (patrol.latitude === null || patrol.longitude === null) return true;
 
                 try {
@@ -196,7 +194,7 @@ router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res
                         polygon
                     );
                 } catch (e) {
-                    console.error('Ошибка проверки полигона для юзера:', patrol.id, e);
+                    console.error('Ошибка гео-фильтрации для юзера:', patrol.id, e);
                     return true;
                 }
             });
@@ -204,8 +202,8 @@ router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res
 
         res.json({ active_patrols: activePatrols });
     } catch (error) {
-        console.error('Ошибка при получении активных патрулей:', error);
-        res.status(500).json({ error: 'Ошибка сервера: ' + error.message });
+        console.error('❌ Ошибка /api/gps/active:', error);
+        res.status(500).json({ error: 'Сервер: ' + error.message });
     }
 });
 
@@ -228,48 +226,40 @@ function isPointInPolygon(point, polygon) {
     return inside;
 }
 
-// Получение настроек территории (полигона)
+// Получение настроек территории
 router.get('/territory', authenticateToken, async (req, res) => {
     try {
-        const result = await pool.query("SELECT value FROM global_settings WHERE key = 'territory_polygon'");
-        let polygon = result.rows.length > 0 ? result.rows[0].value : [];
-
-        // Гарантируем, что возвращаем массив, даже если в БД лежит строка
-        if (typeof polygon === 'string') {
-            try {
-                polygon = JSON.parse(polygon);
-            } catch (e) {
-                console.error('Ошибка парсинга полигона из БД:', e);
-                polygon = [];
-            }
+        const result = await pool.query("SELECT value::text FROM global_settings WHERE key = 'territory_polygon'");
+        let polygon = [];
+        if (result.rows.length > 0 && result.rows[0].value) {
+            const rawValue = result.rows[0].value;
+            polygon = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
         }
-
         res.json({ polygon: Array.isArray(polygon) ? polygon : [] });
     } catch (error) {
-        console.error('Ошибка при получении территории:', error);
-        res.status(500).json({ error: 'Ошибка сервера: ' + error.message });
+        console.error('❌ Ошибка /api/gps/territory (GET):', error);
+        res.status(500).json({ error: 'БД Ошибка: ' + error.message });
     }
 });
 
-// Сохранение настроек территории (только админ)
+// Сохранение настроек территории
 router.post('/territory', authenticateToken, authorizeRole('admin'), async (req, res) => {
     try {
         const { polygon } = req.body;
         if (!Array.isArray(polygon)) {
-            return res.status(400).json({ error: 'Полигон должен быть массивом координат' });
+            return res.status(400).json({ error: 'Полигон должен быть массивом' });
         }
 
-        // При работе с JSONB в pg-node лучше передавать объект напрямую, 
-        // но для надежности здесь мы гарантируем валидный JSON
+        // Сохраняем как JSONB, используя типизацию PostgreSQL
         await pool.query(
-            "INSERT INTO global_settings (key, value) VALUES ('territory_polygon', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+            "INSERT INTO global_settings (key, value) VALUES ('territory_polygon', $1::jsonb) ON CONFLICT (key) DO UPDATE SET value = $1::jsonb",
             [JSON.stringify(polygon)]
         );
 
         res.json({ message: 'Территория успешно сохранена', polygon });
     } catch (error) {
-        console.error('Ошибка при сохранении территории:', error);
-        res.status(500).json({ error: 'Ошибка сервера сохранение: ' + error.message });
+        console.error('❌ Ошибка /api/gps/territory (POST):', error);
+        res.status(500).json({ error: 'Ошибка сохранения: ' + error.message });
     }
 });
 
