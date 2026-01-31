@@ -464,13 +464,13 @@ router.post('/import/xlsx', authenticateToken, authorizeRole('admin'), upload.si
             const rowNum = i + 2; // +2 потому что первая строка - заголовки, и нумерация с 1
 
             try {
-                // Получаем данные из строки (поддержка разных вариантов названий колонок)
-                const lastName = row['Фамилия'] || row['last_name'] || row['LastName'];
-                const firstName = row['Имя'] || row['first_name'] || row['FirstName'];
-                const patronymic = row['Отчество'] || row['patronymic'] || row['Patronymic'] || '';
-                let phone = row['Телефон'] || row['phone'] || row['Phone'] || '';
-                const roleRaw = row['Роль (kpp/patrol/admin)'] || row['Роль'] || row['role'] || row['Role'] || '';
-                const password = row['Пароль'] || row['password'] || row['Password'] || '';
+                // Получаем данные из строки и принудительно переводим в текст .toString()
+                const lastName = (row['Фамилия'] || row['last_name'] || row['LastName'] || '').toString();
+                const firstName = (row['Имя'] || row['first_name'] || row['FirstName'] || '').toString();
+                const patronymic = (row['Отчество'] || row['patronymic'] || row['Patronymic'] || '').toString();
+                let phone = (row['Телефон'] || row['phone'] || row['Phone'] || '').toString();
+                const roleRaw = (row['Роль (kpp/patrol/admin)'] || row['Роль'] || row['role'] || row['Role'] || '').toString();
+                const password = (row['Пароль'] || row['password'] || row['Password'] || '').toString();
 
                 // Валидация
                 if (!lastName || !firstName) {
