@@ -4,6 +4,7 @@ let authToken = localStorage.getItem('authToken');
 let currentUser = null;
 let realtimeMap = null;
 let scansChart = null;
+let realtimeUpdateInterval = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -96,12 +97,22 @@ function setupNavigation() {
       document.getElementById('page-title').textContent = titles[page];
 
       // Load page content
+      // Очищаем интервал обновления realtime карты при переходе на другую страницу
+      if (realtimeUpdateInterval) {
+        clearInterval(realtimeUpdateInterval);
+        realtimeUpdateInterval = null;
+      }
+
       switch (page) {
         case 'dashboard':
           loadDashboard();
           break;
         case 'realtime':
           loadRealtimeMap();
+          // Автоматическое обновление каждые 10 секунд
+          realtimeUpdateInterval = setInterval(() => {
+            loadRealtimeMap();
+          }, 10000);
           break;
         case 'scans':
           loadScans();
@@ -156,30 +167,6 @@ function updateDateTime() {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
-
-// Helper function to format date/time in Tashkent timezone
-function formatDateTime(dateString) {
-  if (!dateString) return '—';
-  const date = new Date(dateString);
-  return date.toLocaleString('ru-RU', {
-    timeZone: 'Asia/Tashkent',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
-
-function formatTime(dateString) {
-  if (!dateString) return '—';
-  const date = new Date(dateString);
-  return date.toLocaleTimeString('ru-RU', {
-    timeZone: 'Asia/Tashkent',
     hour: '2-digit',
     minute: '2-digit'
   });
@@ -349,12 +336,6 @@ async function loadRealtimeMap() {
 }
 
 function initializeRealtimeMap() {
-  if (typeof ymaps === 'undefined') {
-    console.error('Yandex Maps API not loaded');
-    showNotification('Ошибка загрузки Yandex Maps API. Проверьте подключение к интернету.', 'error');
-    return;
-  }
-
   ymaps.ready(() => {
     realtimeMap = new ymaps.Map('realtime-map', {
       center: [41.204358, 69.234420],
@@ -422,18 +403,11 @@ function renderRealtimeMap(checkpoints, patrols) {
     const marker = new ymaps.Placemark([cp.latitude, cp.longitude], {
       iconCaption: cp.name,
       balloonContent: `
-        <div style="min-width: 220px; padding: 8px; color: #1e293b;">
-            <div style="display: flex; gap: 10px; align-items: start; margin-bottom: 10px;">
-                <div style="flex: 1;">
-                    <strong style="font-size: 1.1rem; display: block; margin-bottom: 5px;">${cp.name}</strong>
-                    <div style="color: #64748b; font-size: 0.85rem;">
-                        ${cp.checkpoint_type === 'kpp' ? '🔴 КПП' : '🟢 Патруль'}<br>
-                        ${cp.description || ''}
-                    </div>
-                </div>
-                <div style="cursor: pointer; flex-shrink: 0;" onclick="viewQRCode(${cp.id})" title="Нажмите для увеличения">
-                    <img src="/api/checkpoints/${cp.id}/qrcode" style="width: 60px; height: 60px; border: 1px solid #e2e8f0; border-radius: 4px;" alt="QR">
-                </div>
+        <div style="min-width: 200px; padding: 5px; color: #1e293b;">
+            <strong style="font-size: 1.1rem; display: block; margin-bottom: 5px;">${cp.name}</strong>
+            <div style="margin-bottom: 10px; color: #64748b; font-size: 0.85rem;">
+                ${cp.checkpoint_type === 'kpp' ? '🔴 КПП' : '🟢 Патруль'}<br>
+                ${cp.description || ''}
             </div>
             
             <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.05); padding: 8px; border-radius: 6px; margin-bottom: 10px;">
@@ -444,7 +418,7 @@ function renderRealtimeMap(checkpoints, patrols) {
                 </label>
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px;">
                 <button class="btn btn-primary" onclick="window.open('/print-qr.html?id=${cp.id}&token=${authToken}', '_blank')" style="font-size: 0.85rem; padding: 8px;">
                     📄 PDF
                 </button>
@@ -495,7 +469,7 @@ function renderRealtimeMap(checkpoints, patrols) {
             <div style="background: rgba(15, 23, 42, 0.95); color: white; padding: 4px 10px; border-radius: 8px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; min-width: 100px;">
                 <div style="font-weight: 800; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.2); margin-bottom: 4px; padding-bottom: 2px;">${patrol.full_name}</div>
                 <div style="opacity: 0.9; font-weight: 600; color: #10b981; font-size: 9px;">● Онлайн</div>
-                <div style="opacity: 0.7; font-size: 9px; margin-top: 2px;">${formatTime(patrol.recorded_at)}</div>
+                <div style="opacity: 0.7; font-size: 9px; margin-top: 2px;">${new Date(patrol.recorded_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
            </div>`
         )
@@ -789,18 +763,18 @@ async function viewQRCode(id) {
     showModal({
       title: `QR-код: ${data.name}`,
       content: `
-        <div style="text-align: center; padding: 1rem; max-width: 400px; margin: 0 auto;">
-          <img src="${data.qr_code}" alt="QR Code" style="width: 100%; max-width: 280px; height: auto; border-radius: 1rem; border: 1px solid var(--border); margin-bottom: 1rem;">
-          <div style="margin-bottom: 1.5rem;">
+        <div style="text-align: center; padding: 2rem;">
+          <img src="${data.qr_code}" alt="QR Code" style="max-width: 250px; height: auto; border-radius: 1rem; border: 1px solid var(--border);">
+          <div style="margin-top: 1.5rem;">
             <div style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Код для ручного ввода:</div>
-            <div style="font-size: 2rem; font-weight: bold; color: var(--text-primary); letter-spacing: 3px; word-break: break-all;">${data.short_code}</div>
+            <div style="font-size: 2.5rem; font-weight: bold; color: var(--text-primary); letter-spacing: 5px;">${data.short_code}</div>
           </div>
-          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div style="margin-top: 2rem; display: flex; flex-direction: column; gap: 0.75rem;">
             <button class="btn btn-primary" onclick="window.open('/print-qr.html?id=${id}&token=${authToken}', '_blank')" style="width: 100%;">
-              🖨️ Скачать для печати
+              🖨️ Скачать для печати (A4 Прямая печать)
             </button>
             <button class="btn btn-secondary" onclick="downloadQRCode('${data.qr_code}', '${data.name}')" style="width: 100%;">
-              💾 Скачать QR
+              💾 Скачать только QR
             </button>
           </div>
         </div>
@@ -879,11 +853,6 @@ function showCheckpointModal(checkpoint = null) {
     onLoad: () => {
       // Initialize map inside timeout to ensure container is ready
       setTimeout(() => {
-        if (typeof ymaps === 'undefined') {
-          console.error('Yandex Maps API not loaded in modal');
-          return;
-        }
-
         const initialLat = parseFloat(checkpoint ? checkpoint.latitude : 41.204358);
         const initialLng = parseFloat(checkpoint ? checkpoint.longitude : 69.234420);
 
