@@ -579,6 +579,55 @@ body {
   white-space: nowrap;
 }
 
+/* New Patrol Stats Layout */
+.patrol-stats-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+  width: 100%;
+}
+
+.stat-item-full {
+  background: var(--bg-tertiary);
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.stat-value-large {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: 'Courier New', Courier, monospace;
+  letter-spacing: 2px;
+}
+
+.stats-row-split {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
+.btn-compact-split {
+  flex: 1.5;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border-radius: 0.75rem;
+}
+
+.stat-item-split {
+  flex: 1;
+  background: var(--bg-tertiary);
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 /* Map */
 .map-container {
   height: 400px;

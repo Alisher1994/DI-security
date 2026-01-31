@@ -85,19 +85,24 @@
                     <div class="session-icon active">🏃</div>
                     <p>Патрулирование активно</p>
 
-                    <div class="stats-row-compact">
-                        <div class="stat-item-compact">
-                            <div class="stat-label">ВРЕМЯ</div>
-                            <div id="session-duration" class="stat-value">00:00:00</div>
+                    <div class="patrol-stats-container">
+                        <!-- Таймер сверху -->
+                        <div class="stat-item-full">
+                            <div class="stat-label">ДЛИТЕЛЬНОСТЬ</div>
+                            <div id="session-duration" class="stat-value-large">00:00:00</div>
                         </div>
-                        <div class="stat-item-compact">
-                            <div class="stat-label">СКАНЫ</div>
-                            <div id="session-scans" class="stat-value">0</div>
+
+                        <!-- Сканы и Стоп снизу -->
+                        <div class="stats-row-split">
+                            <div class="stat-item-split">
+                                <div class="stat-label">СКАНЫ</div>
+                                <div id="session-scans" class="stat-value">0</div>
+                            </div>
+                            <button id="stop-patrol-btn" class="btn btn-danger btn-compact-split">
+                                <span class="btn-icon">⏹️</span>
+                                <span>Завершить</span>
+                            </button>
                         </div>
-                        <button id="stop-patrol-btn" class="btn btn-danger btn-compact">
-                            <span class="btn-icon" style="margin-right: 2px;">⏹️</span>
-                            <span>Завершить</span>
-                        </button>
                     </div>
                 </div>
             </div>
@@ -164,7 +169,7 @@
         </div>
     </div>
 
-    <script src="/js/employee-app.js?v=2.3"></script>
+    <script src="/js/employee-app.js?v=2.4"></script>
 </body>
 
 </html>
