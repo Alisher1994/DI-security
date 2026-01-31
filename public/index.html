@@ -75,25 +75,28 @@
                 <h2 class="section-title">Патрулирование</h2>
                 <div id="session-inactive" class="session-state">
                     <div class="session-icon">🚶</div>
-                    <p>Нажмите кнопку для начала патрулирования</p>
-                    <button id="start-patrol-btn" class="btn btn-success">
+                    <p style="margin-bottom: 1rem;">Нажмите кнопку для начала патрулирования</p>
+                    <button id="start-patrol-btn" class="btn btn-success btn-medium">
                         <span class="btn-icon">▶️</span>
                         <span>Начать патруль</span>
                     </button>
                 </div>
                 <div id="session-active" class="session-state" style="display: none;">
-                    <div class="session-active-row">
-                        <div class="stat-item-mini">
-                            <div class="stat-label">⏱️ Время</div>
-                            <div id="session-duration" class="stat-value-mini">00:00:00</div>
+                    <div class="session-icon active">🏃</div>
+                    <p>Патрулирование активно</p>
+
+                    <div class="stats-row-compact">
+                        <div class="stat-item-compact">
+                            <div class="stat-label">ВРЕМЯ</div>
+                            <div id="session-duration" class="stat-value">00:00:00</div>
                         </div>
-                        <div class="stat-item-mini">
-                            <div class="stat-label">📸 Сканы</div>
-                            <div id="session-scans" class="stat-value-mini">0</div>
+                        <div class="stat-item-compact">
+                            <div class="stat-label">СКАНЫ</div>
+                            <div id="session-scans" class="stat-value">0</div>
                         </div>
-                        <button id="stop-patrol-btn" class="btn btn-danger btn-mini">
-                            <span class="btn-icon">⏹️</span>
-                            <span class="btn-text">Завершить</span>
+                        <button id="stop-patrol-btn" class="btn btn-danger btn-compact">
+                            <span class="btn-icon" style="margin-right: 2px;">⏹️</span>
+                            <span>Завершить</span>
                         </button>
                     </div>
                 </div>
@@ -101,7 +104,7 @@
         </section>
 
         <!-- QR Scanner -->
-        <section class="scanner-section">
+        <section id="scanner-section" class="scanner-section" style="display: none;">
             <div class="control-card">
                 <h2 class="section-title">Сканирование QR-кода</h2>
                 <button id="scan-qr-btn" class="btn btn-primary btn-large" disabled>
