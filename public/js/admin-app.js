@@ -491,18 +491,33 @@ function renderRealtimeMap(checkpoints, patrols) {
       const marker = L.marker([cp.latitude, cp.longitude], { icon }).addTo(realtimeMap);
 
       marker.bindPopup(`
-        <div style="min-width: 200px; padding: 5px; color: #1e293b;">
-          <strong style="font-size: 1.1rem; display: block; margin-bottom: 5px;">${cp.name}</strong>
-          <div style="margin-bottom: 10px; color: #64748b; font-size: 0.85rem;">
+        <div style="min-width: 220px; padding: 5px; color: #1e293b;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <strong style="font-size: 1.1rem; flex: 1; margin-right: 10px;">${cp.name}</strong>
+            <span style="background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-weight: bold; color: var(--primary); border: 1px solid var(--border);">
+              ${cp.short_code || '----'}
+            </span>
+          </div>
+          
+          <div style="margin-bottom: 12px; color: #64748b; font-size: 0.85rem;">
             ${cp.checkpoint_type === 'kpp' ? '🔴 КПП' : '🟢 Патруль'}<br>
             ${cp.description || ''}
           </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px;">
-            <button class="btn btn-primary" onclick="window.open('/print-qr.html?id=${cp.id}&token=${authToken}', '_blank')" style="font-size: 0.85rem; padding: 8px;">
-              📄 PDF
+
+          <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.05); padding: 8px; border-radius: 6px; margin-bottom: 12px;">
+            <span style="font-size: 0.85rem; font-weight: 500;">Статус</span>
+            <label class="switch" style="transform: scale(0.8);">
+              <input type="checkbox" ${cp.is_active ? 'checked' : ''} onchange="toggleCheckpointStatus(${cp.id}, this.checked)">
+              <span class="slider"></span>
+            </label>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 44px; gap: 8px;">
+            <button class="btn btn-primary" onclick="window.open('/print-qr.html?id=${cp.id}&token=${authToken}', '_blank')" style="font-size: 0.85rem; padding: 10px;">
+              🖨️ Скачать QR код
             </button>
-            <button class="btn btn-secondary" onclick="editCheckpoint(${cp.id})" style="font-size: 0.85rem; padding: 8px;">
-              ✏️ Изменить
+            <button class="btn btn-secondary" onclick="editCheckpoint(${cp.id})" title="Изменить" style="padding: 10px; display: flex; align-items: center; justify-content: center;">
+              ✏️
             </button>
           </div>
         </div>
@@ -566,27 +581,33 @@ function renderRealtimeMap(checkpoints, patrols) {
     const marker = new ymaps.Placemark([cp.latitude, cp.longitude], {
       iconCaption: cp.name,
       balloonContent: `
-        <div style="min-width: 200px; padding: 5px; color: #1e293b;">
-            <strong style="font-size: 1.1rem; display: block; margin-bottom: 5px;">${cp.name}</strong>
-            <div style="margin-bottom: 10px; color: #64748b; font-size: 0.85rem;">
+        <div style="min-width: 220px; padding: 5px; color: #1e293b;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+              <strong style="font-size: 1.1rem; flex: 1; margin-right: 10px;">${cp.name}</strong>
+              <span style="background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-weight: bold; color: #2563eb; border: 1px solid rgba(0,0,0,0.1);">
+                ${cp.short_code || '----'}
+              </span>
+            </div>
+            
+            <div style="margin-bottom: 12px; color: #64748b; font-size: 0.85rem;">
                 ${cp.checkpoint_type === 'kpp' ? '🔴 КПП' : '🟢 Патруль'}<br>
                 ${cp.description || ''}
             </div>
             
-            <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.05); padding: 8px; border-radius: 6px; margin-bottom: 10px;">
-                <span style="font-size: 0.85rem;">Активность</span>
+            <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.05); padding: 8px; border-radius: 6px; margin-bottom: 12px;">
+                <span style="font-size: 0.85rem; font-weight: 500;">Статус</span>
                 <label class="switch" style="transform: scale(0.8);">
                     <input type="checkbox" ${cp.is_active ? 'checked' : ''} onchange="toggleCheckpointStatus(${cp.id}, this.checked)">
                     <span class="slider"></span>
                 </label>
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px;">
-                <button class="btn btn-primary" onclick="window.open('/print-qr.html?id=${cp.id}&token=${authToken}', '_blank')" style="font-size: 0.85rem; padding: 8px;">
-                    📄 PDF
+            <div style="display: grid; grid-template-columns: 1fr 44px; gap: 8px;">
+                <button class="btn btn-primary" onclick="window.open('/print-qr.html?id=${cp.id}&token=${authToken}', '_blank')" style="font-size: 0.85rem; padding: 10px;">
+                    🖨️ Скачать QR код
                 </button>
-                <button class="btn btn-secondary" onclick="editCheckpoint(${cp.id})" style="font-size: 0.85rem; padding: 8px;">
-                    ✏️ Изменить
+                <button class="btn btn-secondary" onclick="editCheckpoint(${cp.id})" title="Изменить" style="padding: 10px; display: flex; align-items: center; justify-content: center;">
+                    ✏️
                 </button>
             </div>
         </div>
