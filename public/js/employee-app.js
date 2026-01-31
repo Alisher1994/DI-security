@@ -228,10 +228,12 @@ async function checkActiveSession() {
             startSessionTimer(new Date(patrolSession.session_start));
 
             console.log('🔄 Сессия патрулирования восстановлена');
-        } else if (currentUser.role === 'patrol') {
-            // Если сессии нет, но роль патрульный - запускаем АВТОМАТИЧЕСКИ
-            console.log('🚀 Автоматический запуск патрулирования для:', currentUser.full_name);
-            await startPatrolSession(true); // true означает фоновый запуск без уведомления
+        } else {
+            // Гарантируем скрытие, если сессии нет
+            document.getElementById('session-inactive').style.display = 'block';
+            document.getElementById('session-active').style.display = 'none';
+            document.getElementById('scanner-section').style.display = 'none';
+            document.getElementById('map-section').style.display = 'none';
         }
     } catch (error) {
         console.error('Ошибка при проверке активной сессии:', error);
@@ -277,6 +279,13 @@ async function startPatrolSession(isAuto = false) {
             showNotification('Патрулирование начато', 'success');
         }
     } catch (error) {
+        // Если сессия уже активна - просто синхронизируем UI
+        if (error.message.includes('уже есть активная сессия')) {
+            console.log('⚠️ Сессия уже была активна, синхронизируем UI...');
+            await checkActiveSession();
+            return;
+        }
+
         if (!actuallyAuto) {
             showNotification(error.message, 'error');
         }

@@ -127,6 +127,29 @@ router.post('/session/end', authenticateToken, async (req, res) => {
     }
 });
 
+// Получение сессий пользователя
+router.get('/sessions', authenticateToken, async (req, res) => {
+    const userId = req.user.id;
+    const { active_only } = req.query;
+
+    try {
+        let query = 'SELECT * FROM patrol_sessions WHERE user_id = $1';
+        const params = [userId];
+
+        if (active_only === 'true') {
+            query += ' AND is_active = true';
+        }
+
+        query += ' ORDER BY session_start DESC';
+
+        const result = await pool.query(query, params);
+        res.json({ sessions: result.rows });
+    } catch (error) {
+        console.error('Ошибка получения сессий:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
 // Отправка GPS координат
 router.post('/track', [
     authenticateToken,
