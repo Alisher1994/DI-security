@@ -116,14 +116,71 @@
                         <div class="user-role">Админ</div>
                     </div>
                 </div>
-                <button id="logout-btn" class="btn-logout" title="Выйти">🚪</button>
+                <button id="logout-btn" class="btn-logout" title="Выйти">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-log-out">
+                        <path d="m16 17 5-5-5-5" />
+                        <path d="M21 12H9" />
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    </svg>
+                </button>
             </div>
         </aside>
 
         <!-- Main Content -->
         <main class="main-content">
             <header class="page-header">
-                <h1 id="page-title" class="page-title">Аналитика</h1>
+                <div id="header-tab-actions" class="header-tab-actions">
+                    <!-- Buttons will be toggled here -->
+                    <div id="actions-dashboard" class="tab-actions" style="display: block;">
+                        <button id="refresh-dashboard" class="btn btn-primary">
+                            <span class="btn-icon">🔄</span> Обновить данные
+                        </button>
+                    </div>
+
+                    <div id="actions-realtime" class="tab-actions" style="display: none;">
+                        <button id="refresh-map-header" class="btn btn-primary">
+                            <span class="btn-icon">🔄</span> Обновить
+                        </button>
+                        <button class="btn btn-primary" id="territory-btn-header" onclick="toggleTerritoryEditMode()">
+                            <span class="btn-icon">📐</span> Граница
+                        </button>
+                        <button class="btn btn-primary" id="delete-territory-btn-header" onclick="deleteTerritory()">
+                            <span class="btn-icon">🗑️</span> Удалить зону
+                        </button>
+                        <button id="add-checkpoint-map-header" class="btn btn-primary">
+                            <span class="btn-icon">➕</span> Добавить QR
+                        </button>
+                    </div>
+
+                    <div id="actions-scans" class="tab-actions" style="display: none;">
+                        <button id="exportScansHeader" class="btn btn-primary">
+                            <span class="btn-icon">📥</span> Экспорт CSV
+                        </button>
+                    </div>
+
+                    <div id="actions-checkpoints" class="tab-actions" style="display: none;">
+                        <button id="addCheckpointHeader" class="btn btn-primary">
+                            <span class="btn-icon">➕</span> Добавить точку
+                        </button>
+                    </div>
+
+                    <div id="actions-employees" class="tab-actions" style="display: none;">
+                        <button id="addEmployeeHeader" class="btn btn-primary">
+                            <span class="btn-icon">➕</span> Добавить сотрудника
+                        </button>
+                        <button id="exportEmployeesHeader" class="btn btn-primary">
+                            <span class="btn-icon">📥</span> Скачать XLSX
+                        </button>
+                        <button id="downloadTemplateHeader" class="btn btn-primary">
+                            <span class="btn-icon">📄</span> Шаблон
+                        </button>
+                        <button id="importEmployeesBtnHeader" class="btn btn-primary">
+                            <span class="btn-icon">📤</span> Импорт XLSX
+                        </button>
+                    </div>
+                </div>
                 <div class="header-actions">
                     <div class="datetime" id="current-datetime"></div>
                 </div>
@@ -188,21 +245,6 @@
             <!-- Realtime Map Page -->
             <div id="realtime-page" class="page-content">
                 <div class="map-header">
-                    <div class="map-controls">
-                        <button id="refresh-map" class="btn btn-primary">
-                            <span class="btn-icon">🔄</span> Обновить
-                        </button>
-                        <button class="btn btn-success" id="territory-btn" onclick="toggleTerritoryEditMode()">
-                            <span class="btn-icon">📐</span> Граница территории
-                        </button>
-                        <button class="btn btn-danger" id="delete-territory-btn" onclick="deleteTerritory()"
-                            title="Удалить границы территории">
-                            <span class="btn-icon">🗑️</span> Удалить зону
-                        </button>
-                        <button id="add-checkpoint-map" class="btn btn-success">
-                            <span class="btn-icon">➕</span> Добавить QR
-                        </button>
-                    </div>
                     <div class="map-legend">
                         <div class="legend-item">
                             <span class="legend-icon" style="font-size: 1.2rem; margin-right: 0.5rem;">👮</span>
@@ -245,7 +287,6 @@
                         <button id="applyScanFilter" class="btn btn-secondary">Применить</button>
                         <button id="clearScanFilter" class="btn btn-secondary">Сбросить</button>
                     </div>
-                    <button id="exportScans" class="btn btn-primary">📥 Экспорт CSV</button>
                 </div>
                 <div id="scansSummarySection" style="margin-bottom: 2rem; display: none;">
                     <h3 class="section-title">📊 Сводка по сотрудникам (группировка)</h3>
@@ -283,41 +324,36 @@
 
             <!-- Checkpoints Page -->
             <div id="checkpoints-page" class="page-content">
-                <div class="page-actions">
-                    <button id="addCheckpoint" class="btn btn-success">+ Добавить точку</button>
-                </div>
                 <div class="cards-grid" id="checkpointsGrid"></div>
             </div>
 
             <!-- Employees Page -->
             <div id="employees-page" class="page-content">
-                <div class="page-actions">
-                    <button id="addEmployee" class="btn btn-success">+ Добавить сотрудника</button>
-                    <div class="action-group">
-                        <button id="exportEmployees" class="btn btn-primary">📥 Скачать XLSX</button>
-                        <button id="downloadTemplate" class="btn btn-secondary">📄 Шаблон импорта</button>
-                        <button id="importEmployeesBtn" class="btn btn-warning">📤 Импорт из XLSX</button>
-                        <input type="file" id="importFile" accept=".xlsx,.xls" style="display: none;">
-                    </div>
+                <input type="file" id="importFile" accept=".xlsx,.xls" style="display: none;">
+
+                <div id="bulk-actions-bar" class="bulk-actions-bar" style="display: none;">
+                    <span id="selected-count">Выбрано: 0</span>
+                    <button id="bulk-deactivate" class="btn btn-danger btn-sm">Деактивировать выбранных</button>
                 </div>
                 <div class="table-container">
                     <table class="data-table">
                         <thead>
                             <tr>
+                                <th style="width: 40px;"><input type="checkbox" id="selectAllEmployees"></th>
                                 <th>ID</th>
                                 <th>ФИО</th>
-                                <th>Дата/Время добавления</th>
                                 <th>Телефон</th>
                                 <th>Роль</th>
                                 <th>Статус</th>
+                                <th>Дата/Время добавления</th>
                                 <th>Действия</th>
                             </tr>
                             <tr class="filter-row">
+                                <th></th>
                                 <th><input type="text" id="filter-emp-id" placeholder="Фильтр..." class="filter-input">
                                 </th>
                                 <th><input type="text" id="filter-emp-name" placeholder="Поиск по ФИО..."
                                         class="filter-input"></th>
-                                <th></th>
                                 <th><input type="text" id="filter-emp-phone" placeholder="Телефон..."
                                         class="filter-input"></th>
                                 <th>
@@ -341,6 +377,7 @@
                         <tbody id="employeesTableBody"></tbody>
                     </table>
                 </div>
+                <div id="employeesPagination" class="pagination-container"></div>
             </div>
         </main>
     </div>

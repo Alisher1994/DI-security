@@ -12,6 +12,9 @@ let territoryLayer = null; // Слой полигона на карте
 let isTerritoryEditMode = false;
 let territoryEditMarkers = []; // Маркеры границ при редактировании
 let allEmployees = []; // Хранилище всех сотрудников для фильтрации
+let employeeCurrentPage = 1;
+let employeeItemsPerPage = 10;
+let selectedEmployeeIds = [];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -111,15 +114,11 @@ function setupNavigation() {
       document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
       document.getElementById(`${page}-page`).classList.add('active');
 
-      // Update page title
-      const titles = {
-        'dashboard': 'Аналитика',
-        'realtime': 'Карта',
-        'scans': 'История',
-        'checkpoints': 'Контрольные точки',
-        'employees': 'Сотрудники'
-      };
-      document.getElementById('page-title').textContent = titles[page];
+      // Switch buttons in header
+      const actionContainers = document.querySelectorAll('.tab-actions');
+      actionContainers.forEach(container => container.style.display = 'none');
+      const activeContainer = document.getElementById(`actions-${page}`);
+      if (activeContainer) activeContainer.style.display = 'flex';
 
       // Load page content
       // Очищаем интервал обновления realtime карты при переходе на другую страницу
@@ -164,30 +163,46 @@ function safeAddEventListener(id, event, handler) {
 
 function setupEventListeners() {
   safeAddEventListener('logout-btn', 'click', handleLogout);
-  safeAddEventListener('refresh-map', 'click', loadRealtimeMap);
-  safeAddEventListener('add-checkpoint-map', 'click', () => {
+  safeAddEventListener('refresh-dashboard', 'click', () => {
+    showNotification('Обновление данных...', 'info');
+    loadDashboardStats();
+    loadRecentScans();
+  });
+  safeAddEventListener('refresh-map-header', 'click', loadRealtimeMap);
+  safeAddEventListener('add-checkpoint-map-header', 'click', () => {
     showNotification('Кликните на карту, чтобы выбрать место для новой точки', 'info');
     showCheckpointModal();
   });
-  safeAddEventListener('addCheckpoint', 'click', () => showCheckpointModal());
-  safeAddEventListener('addEmployee', 'click', () => showEmployeeModal());
+  safeAddEventListener('addCheckpointHeader', 'click', () => showCheckpointModal());
+  safeAddEventListener('addEmployeeHeader', 'click', () => showEmployeeModal());
   safeAddEventListener('applyScanFilter', 'click', loadScans);
   safeAddEventListener('clearScanFilter', 'click', clearScanFilter);
-  safeAddEventListener('exportScans', 'click', exportScansToCSV);
+  safeAddEventListener('exportScansHeader', 'click', exportScansToCSV);
 
   // Excel import/export
-  safeAddEventListener('exportEmployees', 'click', exportEmployeesToXLSX);
-  safeAddEventListener('downloadTemplate', 'click', downloadImportTemplate);
-  safeAddEventListener('importEmployeesBtn', 'click', () => {
+  safeAddEventListener('exportEmployeesHeader', 'click', exportEmployeesToXLSX);
+  safeAddEventListener('downloadTemplateHeader', 'click', downloadImportTemplate);
+  safeAddEventListener('importEmployeesBtnHeader', 'click', () => {
     const fileInput = document.getElementById('importFile');
     if (fileInput) fileInput.click();
   });
   safeAddEventListener('importFile', 'change', importEmployeesFromXLSX);
 
   // Фильтрация сотрудников
-  ['filter-emp-id', 'filter-emp-name', 'filter-emp-phone', 'filter-emp-role', 'filter-emp-status'].forEach(id => {
-    safeAddEventListener(id, 'input', applyEmployeeFilters);
+  const empFilters = ['filter-emp-id', 'filter-emp-name', 'filter-emp-phone', 'filter-emp-role', 'filter-emp-status'];
+  empFilters.forEach(id => {
+    safeAddEventListener(id, 'input', () => {
+      employeeCurrentPage = 1;
+      applyEmployeeFilters();
+    });
+    safeAddEventListener(id, 'change', () => {
+      employeeCurrentPage = 1;
+      applyEmployeeFilters();
+    });
   });
+
+  safeAddEventListener('selectAllEmployees', 'change', (e) => toggleAllEmployees(e.target.checked));
+  safeAddEventListener('bulk-deactivate', 'click', bulkDeactivateEmployees);
 }
 
 function handleLogout() {
@@ -1341,7 +1356,12 @@ function applyEmployeeFilters() {
     return matchesId && matchesName && matchesPhone && matchesRole && matchesStatus;
   });
 
-  renderEmployeesTable(filtered);
+  const totalFiltered = filtered.length;
+  const start = (employeeCurrentPage - 1) * employeeItemsPerPage;
+  const paginated = filtered.slice(start, start + employeeItemsPerPage);
+
+  renderEmployeesTable(paginated);
+  renderEmployeePagination(totalFiltered);
 }
 
 function renderEmployeesTable(employees) {
@@ -1350,7 +1370,7 @@ function renderEmployeesTable(employees) {
   if (employees.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+        <td colspan="8" style="text-align: center; padding: 3rem; color: var(--text-muted);">
           <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
           <div>Нет сотрудников</div>
         </td>
@@ -1359,29 +1379,182 @@ function renderEmployeesTable(employees) {
     return;
   }
 
-  tbody.innerHTML = employees.map(emp => `
-    <tr>
-      <td>${emp.id}</td>
-      <td>${emp.full_name}</td>
-      <td>${formatDateTime(emp.created_at)}</td>
-      <td>${emp.phone || '-'}</td>
-      <td>
-        <span class="badge ${emp.role === 'admin' ? 'badge-danger' : 'badge-success'}">
-          ${getRoleLabel(emp.role)}
-        </span>
-      </td>
-      <td>
-        <label class="switch">
-          <input type="checkbox" ${emp.is_active ? 'checked' : ''} onchange="toggleEmployeeStatus(${emp.id}, this.checked)">
-          <span class="slider"></span>
-        </label>
-      </td>
-      <td>
-        <button class="btn btn-secondary btn-icon" onclick="editEmployee(${emp.id})" title="Редактировать">✏️</button>
-        ${emp.id !== currentUser.id ? `<button class="btn btn-danger btn-icon" onclick="deleteEmployee(${emp.id})" title="Удалить">🗑️</button>` : ''}
-      </td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = employees.map(emp => {
+    const isSelected = selectedEmployeeIds.includes(emp.id);
+    const isAdmin = emp.role === 'admin';
+
+    return `
+      <tr>
+        <td><input type="checkbox" class="emp-checkbox" value="${emp.id}" ${isSelected ? 'checked' : ''} onchange="toggleEmployeeSelection(${emp.id}, this.checked)"></td>
+        <td>${emp.id}</td>
+        <td>${emp.full_name}</td>
+        <td>${emp.phone || '-'}</td>
+        <td>
+          <span class="badge ${emp.role === 'admin' ? 'badge-danger' : 'badge-success'}">
+            ${getRoleLabel(emp.role)}
+          </span>
+        </td>
+        <td>
+          ${isAdmin ? `
+            <span class="badge badge-success" title="Администратор всегда активен">АКТИВЕН</span>
+          ` : `
+            <label class="switch">
+              <input type="checkbox" ${emp.is_active ? 'checked' : ''} onchange="toggleEmployeeStatus(${emp.id}, this.checked)">
+              <span class="slider"></span>
+            </label>
+          `}
+        </td>
+        <td style="color: var(--text-muted); font-size: 0.85rem;">${formatDateTime(emp.created_at)}</td>
+        <td>
+          <button class="btn btn-secondary btn-icon" onclick="editEmployee(${emp.id})" title="Редактировать">✏️</button>
+          ${emp.id !== currentUser.id ? `<button class="btn btn-danger btn-icon" onclick="deleteEmployee(${emp.id})" title="Удалить">🗑️</button>` : ''}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  updateBulkActionsBar();
+}
+
+function renderEmployeePagination(totalItems) {
+  const totalPages = Math.ceil(totalItems / employeeItemsPerPage);
+  const container = document.getElementById('employeesPagination');
+
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = `
+    <button class="pagination-btn" ${employeeCurrentPage === 1 ? 'disabled' : ''} onclick="changeEmployeePage(${employeeCurrentPage - 1})">← Назад</button>
+  `;
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= employeeCurrentPage - 1 && i <= employeeCurrentPage + 1)) {
+      html += `<button class="pagination-btn ${i === employeeCurrentPage ? 'active' : ''}" onclick="changeEmployeePage(${i})">${i}</button>`;
+    } else if (i === employeeCurrentPage - 2 || i === employeeCurrentPage + 2) {
+      html += `<span style="color: var(--text-muted)">...</span>`;
+    }
+  }
+
+  html += `
+    <button class="pagination-btn" ${employeeCurrentPage === totalPages ? 'disabled' : ''} onclick="changeEmployeePage(${employeeCurrentPage + 1})">Вперед →</button>
+  `;
+
+  container.innerHTML = html;
+}
+
+function changeEmployeePage(page) {
+  employeeCurrentPage = page;
+  // Не сбрасываем фильтры, просто перерисовываем текущий срез
+  const fId = document.getElementById('filter-emp-id')?.value.toLowerCase() || '';
+  const fName = document.getElementById('filter-emp-name')?.value.toLowerCase() || '';
+  const fPhone = document.getElementById('filter-emp-phone')?.value.toLowerCase() || '';
+  const fRole = document.getElementById('filter-emp-role')?.value || '';
+  const fStatus = document.getElementById('filter-emp-status')?.value || '';
+
+  const filtered = allEmployees.filter(emp => {
+    const matchesId = emp.id.toString().includes(fId);
+    const matchesName = emp.full_name.toLowerCase().includes(fName);
+    const matchesPhone = (emp.phone || '').toString().includes(fPhone);
+    const matchesRole = !fRole || emp.role === fRole;
+
+    let matchesStatus = true;
+    if (fStatus === 'active') matchesStatus = emp.is_active === true;
+    if (fStatus === 'blocked') matchesStatus = emp.is_active === false;
+
+    return matchesId && matchesName && matchesPhone && matchesRole && matchesStatus;
+  });
+
+  const start = (employeeCurrentPage - 1) * employeeItemsPerPage;
+  const paginated = filtered.slice(start, start + employeeItemsPerPage);
+
+  renderEmployeesTable(paginated);
+  renderEmployeePagination(filtered.length);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function toggleEmployeeSelection(id, isSelected) {
+  if (isSelected) {
+    if (!selectedEmployeeIds.includes(id)) selectedEmployeeIds.push(id);
+  } else {
+    selectedEmployeeIds = selectedEmployeeIds.filter(empId => empId !== id);
+  }
+  updateBulkActionsBar();
+}
+
+function toggleAllEmployees(isSelected) {
+  const checkboxes = document.querySelectorAll('.emp-checkbox');
+  checkboxes.forEach(cb => {
+    cb.checked = isSelected;
+    const id = parseInt(cb.value);
+    if (isSelected) {
+      if (!selectedEmployeeIds.includes(id)) selectedEmployeeIds.push(id);
+    } else {
+      selectedEmployeeIds = selectedEmployeeIds.filter(empId => empId !== id);
+    }
+  });
+  updateBulkActionsBar();
+}
+
+function updateBulkActionsBar() {
+  const bar = document.getElementById('bulk-actions-bar');
+  const countSpan = document.getElementById('selected-count');
+  const selectAllCb = document.getElementById('selectAllEmployees');
+
+  if (selectedEmployeeIds.length > 0) {
+    bar.style.display = 'flex';
+    countSpan.textContent = `Выбрано: ${selectedEmployeeIds.length}`;
+  } else {
+    bar.style.display = 'none';
+  }
+
+  // Обновляем состояние "Выбрать все"
+  const currentCheckboxes = document.querySelectorAll('.emp-checkbox');
+  if (currentCheckboxes.length > 0) {
+    const allChecked = Array.from(currentCheckboxes).every(cb => cb.checked);
+    selectAllCb.checked = allChecked;
+  } else {
+    selectAllCb.checked = false;
+  }
+}
+
+async function bulkDeactivateEmployees() {
+  if (selectedEmployeeIds.length === 0) return;
+
+  const count = selectedEmployeeIds.length;
+  if (!confirm(`Вы уверены, что хотите деактивировать ${count} сотрудников?`)) return;
+
+  try {
+    showNotification(`Деактивация ${count} сотрудников...`, 'info');
+
+    // Отфильтруем админов на всякий случай, если они попали в выборку (хотя мы скрыли им чекбоксы... а нет, не скрыли, но статус запретили менять)
+    // Лучше просто отправить запросы. Сервер может защищать, но мы сделаем последовательно или через Promise.all
+    // В текущем API нет bulk эндпоинта, поэтому делаем циклом.
+
+    let successCount = 0;
+    for (const id of selectedEmployeeIds) {
+      // Пропускаем текущего пользователя и админов (дополнительная защита)
+      const emp = allEmployees.find(e => e.id === id);
+      if (emp && emp.role === 'admin') continue;
+
+      try {
+        await apiRequest(`/employees/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ is_active: false })
+        });
+        successCount++;
+      } catch (e) {
+        console.error(`Failed to deactivate ${id}`, e);
+      }
+    }
+
+    showNotification(`Успешно деактивировано: ${successCount}`, 'success');
+    selectedEmployeeIds = [];
+    loadEmployees(); // Перезагружаем список
+  } catch (error) {
+    showNotification('Ошибка при массовой деактивации', 'error');
+  }
 }
 
 async function toggleEmployeeStatus(id, isActive) {
