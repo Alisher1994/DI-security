@@ -140,6 +140,12 @@ function setupNavigation() {
           break;
         case 'realtime':
           loadRealtimeMap();
+          // Force map resize after transition
+          setTimeout(() => {
+            if (realtimeMap && mapProvider === 'leaflet') {
+              realtimeMap.invalidateSize();
+            }
+          }, 300);
           // Автоматическое обновление каждые 10 секунд
           realtimeUpdateInterval = setInterval(() => {
             loadRealtimeMap();
@@ -453,6 +459,11 @@ async function loadRealtimeMap() {
 
     renderRealtimeMap(checkpoints.checkpoints, activePatrols.active_patrols);
     renderActivePatrolsList(activePatrols.active_patrols);
+
+    // Fix grey tiles issue
+    if (realtimeMap && mapProvider === 'leaflet') {
+      setTimeout(() => realtimeMap.invalidateSize(), 100);
+    }
 
     showNotification('Данные карты обновлены', 'success');
   } catch (error) {
@@ -1034,6 +1045,11 @@ function initTimelineMap(scans) {
 
   timelineMap = L.map('timeline-map').setView([41.204358, 69.234420], 15);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(timelineMap);
+
+  // Fix grey tiles issue in modal
+  setTimeout(() => {
+    if (timelineMap) timelineMap.invalidateSize();
+  }, 400);
 
   const points = [];
   const markers = [];

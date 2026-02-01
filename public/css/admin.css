@@ -535,6 +535,8 @@ body {
     overflow: hidden;
     border: 1px solid var(--border);
     margin-bottom: 1.5rem;
+    background-color: var(--bg-secondary);
+    /* Fallback background */
 }
 
 .map-header {
@@ -1488,6 +1490,15 @@ select.filter-input {
     .header-tab-actions {
         overflow-x: auto;
         padding-bottom: 5px;
+        -ms-overflow-style: none;
+        /* IE and Edge */
+        scrollbar-width: none;
+        /* Firefox */
+    }
+
+    .header-tab-actions::-webkit-scrollbar {
+        display: none;
+        /* Chrome, Safari and Opera */
     }
 
     .tab-actions {
