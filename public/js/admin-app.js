@@ -217,6 +217,17 @@ function setupEventListeners() {
     document.getElementById('bulkQrModal').style.display = 'none';
   });
 
+  safeAddEventListener('closeTerritoryModal', 'click', () => {
+    document.getElementById('territoryModal').style.display = 'none';
+  });
+
+  safeAddEventListener('cancel-territory', 'click', () => {
+    document.getElementById('territoryModal').style.display = 'none';
+  });
+
+  safeAddEventListener('save-territory-modal', 'click', saveTerritory);
+  safeAddEventListener('territory-btn-header', 'click', showTerritoryModal);
+
   safeAddEventListener('selectAllBulkQr', 'change', (e) => {
     const checkboxes = document.querySelectorAll('.bulk-qr-checkbox');
     checkboxes.forEach(cb => cb.checked = e.target.checked);
@@ -2242,255 +2253,119 @@ function renderTerritory() {
   }
 }
 
-function toggleTerritoryEditMode() {
-  isTerritoryEditMode = !isTerritoryEditMode;
-  const btn = document.getElementById('territory-btn');
+let territoryModalMap = null;
+let territoryModalMarkers = [];
+let territoryModalLayer = null;
 
-  if (isTerritoryEditMode) {
-    btn.innerHTML = '<span class="btn-icon">💾</span> Сохранить';
-    btn.classList.add('btn-danger');
-    btn.classList.remove('btn-success');
-    // Очищаем старые маркеры редактирования
-    cleanupTerritoryEditMarkers();
+async function showTerritoryModal() {
+  const modal = document.getElementById('territoryModal');
+  modal.style.display = 'block';
 
-    if (territoryPolygon.length > 0) {
-      showNotification('Режим редактирования: кликайте для добавления точек, правый клик по точке — удалить.', 'info');
-      // Отрисовываем существующие точки для редактирования
-      const currentPoints = [...territoryPolygon];
-      territoryPolygon = []; // Очищаем для повторного добавления через addTerritoryPoint
-      currentPoints.forEach(p => addTerritoryPoint(p[0], p[1]));
+  setTimeout(async () => {
+    if (!territoryModalMap) {
+      territoryModalMap = L.map('territory-modal-map').setView([41.204358, 69.234420], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(territoryModalMap);
+
+      territoryModalMap.on('click', (e) => {
+        addTerritoryModalPoint(e.latlng.lat, e.latlng.lng);
+      });
     } else {
-      showNotification('Кликайте по карте для создания границ. В конце нажмите Сохранить.', 'info');
+      territoryModalMap.invalidateSize();
     }
-  } else {
-    btn.innerHTML = '<span class="btn-icon">📐</span> Граница территории';
-    btn.classList.remove('btn-danger');
-    btn.classList.add('btn-success');
-    saveTerritory();
-  }
+
+    // Load current polygon
+    try {
+      const data = await apiRequest('/gps/territory');
+      territoryPolygon = data.polygon || [];
+
+      // Cleanup previous modal state
+      territoryModalMarkers.forEach(m => m.remove());
+      territoryModalMarkers = [];
+      if (territoryModalLayer) territoryModalMap.removeLayer(territoryModalLayer);
+      territoryModalLayer = null;
+
+      // Render existing
+      if (territoryPolygon.length > 0) {
+        const points = [...territoryPolygon];
+        territoryPolygon = []; // Will be reconstructed
+        points.forEach(p => addTerritoryModalPoint(p[0], p[1]));
+
+        // Zoom to polygon
+        const bounds = L.latLngBounds(points);
+        territoryModalMap.fitBounds(bounds, { padding: [20, 20] });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, 200);
 }
 
-function addTerritoryPoint(lat, lng) {
+function addTerritoryModalPoint(lat, lng) {
   territoryPolygon.push([lat, lng]);
 
-  // Визуализируем точку
-  if (mapProvider === 'leaflet') {
-    const marker = L.circleMarker([lat, lng], {
-      radius: 6,
-      color: '#ffffff',
-      weight: 2,
-      fillColor: '#ef4444',
-      fillOpacity: 1,
-      interactive: true
-    }).addTo(realtimeMap);
+  const marker = L.circleMarker([lat, lng], {
+    radius: 6,
+    color: '#ffffff',
+    weight: 2,
+    fillColor: '#ef4444',
+    fillOpacity: 1,
+    interactive: true
+  }).addTo(territoryModalMap);
 
-    // Удаление точки правым кликом
-    marker.on('contextmenu', (e) => {
-      L.DomEvent.stopPropagation(e);
-      removeTerritoryPoint(lat, lng, marker);
-    });
+  marker.on('contextmenu', (e) => {
+    L.DomEvent.stopPropagation(e);
+    removeTerritoryModalPoint(lat, lng, marker);
+  });
 
-    territoryEditMarkers.push(marker);
-
-    updateTerritoryVisual();
-  }
+  territoryModalMarkers.push(marker);
+  updateModalTerritoryVisual();
 }
 
-function removeTerritoryPoint(lat, lng, marker) {
+function removeTerritoryModalPoint(lat, lng, marker) {
   const index = territoryPolygon.findIndex(p => p[0] === lat && p[1] === lng);
   if (index > -1) {
     territoryPolygon.splice(index, 1);
     marker.remove();
-    territoryEditMarkers = territoryEditMarkers.filter(m => m !== marker);
-    updateTerritoryVisual();
+    territoryModalMarkers = territoryModalMarkers.filter(m => m !== marker);
+    updateModalTerritoryVisual();
   }
 }
 
-function updateTerritoryVisual() {
-  if (mapProvider !== 'leaflet') return;
-
-  if (territoryLayer) realtimeMap.removeLayer(territoryLayer);
+function updateModalTerritoryVisual() {
+  if (territoryModalLayer) territoryModalMap.removeLayer(territoryModalLayer);
 
   if (territoryPolygon.length >= 3) {
-    territoryLayer = L.polygon(territoryPolygon, {
+    territoryModalLayer = L.polygon(territoryPolygon, {
       color: '#ef4444',
       weight: 3,
       fillOpacity: 0.3,
       dashArray: '5, 10'
-    }).addTo(realtimeMap);
-  }
-}
-
-function cleanupTerritoryEditMarkers() {
-  territoryEditMarkers.forEach(m => {
-    if (mapProvider === 'leaflet') m.remove();
-    else if (mapProvider === 'yandex') realtimeMap.geoObjects.remove(m);
-  });
-  territoryEditMarkers = [];
-
-  if (territoryLayer) {
-    if (mapProvider === 'leaflet') realtimeMap.removeLayer(territoryLayer);
-    else if (mapProvider === 'yandex') realtimeMap.geoObjects.remove(territoryLayer);
-    territoryLayer = null;
-  }
-}
-
-async function deleteTerritory() {
-  if (!confirm('Вы уверены, что хотите полностью удалить границы территории?')) return;
-
-  try {
-    await apiRequest('/gps/territory', {
-      method: 'POST',
-      body: JSON.stringify({ polygon: [] })
-    });
-
-    territoryPolygon = [];
-    cleanupTerritoryEditMarkers();
-    renderTerritory();
-    showNotification('Территория удалена', 'success');
-  } catch (error) {
-    console.error('Ошибка удаления территории:', error);
-    showNotification('Не удалось удалить территорию', 'error');
+    }).addTo(territoryModalMap);
   }
 }
 
 async function saveTerritory() {
-  try {
-    if (territoryPolygon.length < 3) {
-      showNotification('Для создания зоны нужно минимум 3 точки', 'warning');
-      loadTerritory(); // Сбрасываем изменения
-      return;
-    }
+  if (territoryPolygon.length > 0 && territoryPolygon.length < 3) {
+    showNotification('Для зоны нужно минимум 3 точки', 'warning');
+    return;
+  }
 
+  try {
     await apiRequest('/gps/territory', {
       method: 'POST',
       body: JSON.stringify({ polygon: territoryPolygon })
     });
+    showNotification('Границы сохранены', 'success');
+    document.getElementById('territoryModal').style.display = 'none';
 
-    showNotification('Границы территории успешно сохранены', 'success');
-
-    // Очищаем маркеры редактирования
-    cleanupTerritoryEditMarkers();
-
+    // Refresh main map
     renderTerritory();
   } catch (error) {
-    console.error('Ошибка сохранения территории:', error);
-    showNotification('Не удалось сохранить территорию', 'error');
+    showNotification('Ошибка сохранения', 'error');
   }
 }
 
-// Add modal and animation styles
-const style = document.createElement('style');
-style.textContent = `
-  .modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-  }
-  
-  .modal.active {
-    display: flex;
-    animation: fadeIn 0.2s;
-  }
-  
-  .modal-content {
-    background: var(--bg-secondary);
-    border-radius: 1rem;
-    max-width: 600px;
-    width: 100%;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: var(--shadow-lg);
-    border: 1px solid var(--border);
-  }
-  
-  .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--border);
-  }
-  
-  .modal-header h2 {
-    font-size: 1.25rem;
-    font-weight: 700;
-  }
-  
-  .modal-close {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 0;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 0.375rem;
-    transition: all 0.2s;
-  }
-  
-  .modal-close:hover {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-  }
-  
-  .modal-body {
-    padding: 1.5rem;
-  }
-  
-  .modal-form .form-group {
-    margin-bottom: 1rem;
-  }
-  
-  .modal-form label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-  }
-  
-  .modal-form textarea {
-    resize: vertical;
-    min-height: 80px;
-  }
-  
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-  
-  .form-actions {
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-end;
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--border);
-  }
-  
-  @keyframes slideIn {
-    from { transform: translateX(400px); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-  
-  @keyframes slideOut {
-    from { transform: translateX(0); opacity: 1; }
-    to { transform: translateX(400px); opacity: 0; }
-  }
-`;
-document.head.appendChild(style);
-
+function toggleTerritoryEditMode() {
+  // This is now handled by modal, but we can keep it as legacy or redirect
+  showTerritoryModal();
+}
