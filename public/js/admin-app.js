@@ -213,6 +213,18 @@ function setupEventListeners() {
   safeAddEventListener('selectAllEmployees', 'change', (e) => toggleAllEmployees(e.target.checked));
   safeAddEventListener('bulk-deactivate', 'click', bulkDeactivateEmployees);
 
+  safeAddEventListener('closeBulkQrModal', 'click', () => {
+    document.getElementById('bulkQrModal').style.display = 'none';
+  });
+
+  safeAddEventListener('selectAllBulkQr', 'change', (e) => {
+    const checkboxes = document.querySelectorAll('.bulk-qr-checkbox');
+    checkboxes.forEach(cb => cb.checked = e.target.checked);
+    updateBulkQrSelectedCount();
+  });
+
+  safeAddEventListener('download-selected-qrs', 'click', downloadSelectedQrs);
+
   // Toggle filter visibility
   document.querySelectorAll('.toggle-filter-btn').forEach(btn => {
     btn.addEventListener('click', function () {
@@ -1472,6 +1484,77 @@ function renderEmployeePagination(totalItems) {
   container.innerHTML = html;
 }
 
+// Bulk QR Printing
+async function showBulkQrModal() {
+  const modal = document.getElementById('bulkQrModal');
+  const tbody = document.getElementById('bulkQrTableBody');
+  modal.style.display = 'block';
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2rem;">Загрузка...</td></tr>';
+
+  try {
+    const data = await apiRequest('/checkpoints');
+    const checkpoints = data.checkpoints || [];
+
+    if (checkpoints.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2rem;">Нет точек для печати</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = checkpoints.map(cp => `
+      <tr class="bulk-qr-row">
+        <td><input type="checkbox" class="bulk-qr-checkbox" value="${cp.id}" checked onchange="updateBulkQrSelectedCount()"></td>
+        <td>
+          <div id="mini-map-${cp.id}" class="mini-map-container"></div>
+        </td>
+        <td><strong>${cp.name}</strong></td>
+        <td><span class="badge ${cp.checkpoint_type === 'kpp' ? 'badge-info' : 'badge-success'}">${cp.checkpoint_type === 'kpp' ? 'КПП' : 'Патруль'}</span></td>
+      </tr>
+    `).join('');
+
+    // Инициализируем мини-карты
+    checkpoints.forEach(cp => {
+      setTimeout(() => {
+        const containerId = `mini-map-${cp.id}`;
+        if (!document.getElementById(containerId)) return;
+
+        const miniMap = L.map(containerId, {
+          zoomControl: false,
+          dragging: false,
+          touchZoom: false,
+          scrollWheelZoom: false,
+          doubleClickZoom: false,
+          attributionControl: false
+        }).setView([cp.latitude, cp.longitude], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(miniMap);
+        L.marker([cp.latitude, cp.longitude]).addTo(miniMap);
+      }, 100);
+    });
+
+    updateBulkQrSelectedCount();
+  } catch (error) {
+    console.error(error);
+    showNotification('Ошибка загрузки точек', 'error');
+  }
+}
+
+function updateBulkQrSelectedCount() {
+  const selected = document.querySelectorAll('.bulk-qr-checkbox:checked');
+  document.getElementById('bulk-qr-selected-count').textContent = `Выбрано: ${selected.length}`;
+}
+
+function downloadSelectedQrs() {
+  const selected = Array.from(document.querySelectorAll('.bulk-qr-checkbox:checked')).map(cb => cb.value);
+  if (selected.length === 0) {
+    showNotification('Выберите хотя бы одну точку', 'warning');
+    return;
+  }
+
+  const token = localStorage.getItem('authToken');
+  const ids = selected.join(',');
+  window.open(`/print-bulk-qr.html?ids=${ids}&token=${token}`, '_blank');
+}
+
 function changeEmployeePage(page) {
   employeeCurrentPage = page;
   const fId = document.getElementById('filter-emp-id')?.value.toLowerCase().trim() || '';
@@ -1500,6 +1583,7 @@ function changeEmployeePage(page) {
   renderEmployeePagination(filtered.length);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
 
 function toggleEmployeeSelection(id, isSelected) {
   if (isSelected) {

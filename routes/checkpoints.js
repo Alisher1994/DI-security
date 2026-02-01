@@ -127,4 +127,36 @@ router.get('/:id/print-data', authenticateToken, async (req, res) => {
     }
 });
 
+// ГЕНЕРАЦИЯ ДАННЫХ ДЛЯ ПЕЧАТНОЙ СТРАНИЦЫ (ОПТОМ)
+router.post('/bulk-print-data', authenticateToken, async (req, res) => {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids)) {
+        return res.status(400).json({ error: 'ids must be an array' });
+    }
+
+    try {
+        const result = await pool.query('SELECT * FROM checkpoints WHERE id = ANY($1)', [ids]);
+        const results = [];
+
+        for (const cp of result.rows) {
+            const qrCodeDataUrl = await QRCode.toDataURL(cp.qr_code_data, {
+                width: 1000,
+                margin: 1,
+                color: { dark: '#1e293b', light: '#ffffff' }
+            });
+
+            results.push({
+                name: cp.name,
+                shortCode: cp.short_code || cp.qr_code_data.slice(-4),
+                type: cp.checkpoint_type === 'kpp' ? 'КПП' : 'Патруль',
+                qrCode: qrCodeDataUrl
+            });
+        }
+
+        res.json({ results });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 export default router;

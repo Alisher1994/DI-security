@@ -1172,3 +1172,30 @@ select.filter-input {
         margin-bottom: 0.5rem;
     }
 }
+
+/* Bulk QR Mini-map */
+.mini-map-container {
+    width: 120px;
+    height: 80px;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: #eee;
+}
+
+.mini-map-container .leaflet-container {
+    height: 100%;
+    width: 100%;
+}
+
+.bulk-qr-row {
+    height: 100px;
+}
+
+.bulk-qr-row td {
+    padding: 0.5rem !important;
+}
+
+.bulk-qr-row .data-table td {
+    vertical-align: middle;
+}

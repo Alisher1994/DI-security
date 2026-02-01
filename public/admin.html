@@ -164,6 +164,9 @@
                     </div>
 
                     <div id="actions-checkpoints" class="tab-actions" style="display: none;">
+                        <button id="bulk-qr-btn-header" class="btn btn-primary" onclick="showBulkQrModal()">
+                            <span class="btn-icon">🖨️</span> Печать QR (Оптом)
+                        </button>
                         <button id="addCheckpointHeader" class="btn btn-primary">
                             <span class="btn-icon">➕</span> Добавить точку
                         </button>
@@ -232,6 +235,8 @@
                         </div>
                     </div>
                 </div>
+
+
 
                 <!-- Charts -->
                 <div class="charts-grid-single">
@@ -389,8 +394,40 @@
         </main>
     </div>
 
-    <!-- Modals will be added dynamically -->
+    <!-- Modals -->
     <div id="modalContainer"></div>
+
+    <div id="bulkQrModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>Печать QR-кодов (Оптом)</h2>
+                <button class="close-modal" id="closeBulkQrModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="bulk-actions-bar">
+                    <span id="bulk-qr-selected-count">Выбрано: 0</span>
+                    <button id="download-selected-qrs" class="btn btn-primary">
+                        <span class="btn-icon">📥</span> Скачать выбранные PDF
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;"><input type="checkbox" id="selectAllBulkQr" checked></th>
+                                <th style="width: 150px;">Карта</th>
+                                <th>Название точки</th>
+                                <th>Тип</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulkQrTableBody">
+                            <!-- Rows will be dynamic -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="/js/admin-app.js?v=2.2"></script>
 </body>
