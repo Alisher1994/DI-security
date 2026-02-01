@@ -48,14 +48,15 @@ body {
 }
 
 .sidebar-header {
-    padding: 1.5rem;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
     border-bottom: 1px solid var(--border);
 }
 
 .sidebar-logo-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    width: 100%;
 }
 
 .sidebar-logo {
@@ -176,7 +177,8 @@ body {
 .page-header {
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
-    padding: 1.5rem 2rem;
+    padding: 0 2rem;
+    height: 70px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -203,8 +205,9 @@ body {
 }
 
 .tab-actions .btn {
-    padding: 0.6rem 1.25rem;
-    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.75rem;
+    min-height: 32px;
 }
 
 .datetime {
@@ -1002,14 +1005,67 @@ input:checked+.slider:before {
 
 .filter-input {
     width: 100%;
-    padding: 6px 15px;
+    padding: 8px 12px;
     background: var(--bg-primary);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: 8px;
     color: var(--text-primary);
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     outline: none;
-    transition: border-color 0.2s;
+    transition: all 0.2s;
+}
+
+.filter-row {
+    display: none;
+}
+
+.filter-row.active {
+    display: table-row;
+}
+
+/* Custom Checkbox */
+input[type="checkbox"].emp-checkbox,
+#selectAllEmployees {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-tertiary);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+input[type="checkbox"]:checked {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+input[type="checkbox"]:checked:after {
+    content: '✓';
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.btn-active {
+    background: var(--primary-dark) !important;
+    border-color: var(--primary-dark) !important;
+}
+
+#scans-page .filters {
+    display: none;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    animation: fadeIn 0.2s;
 }
 
 .filter-input:focus {

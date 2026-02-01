@@ -120,6 +120,12 @@ function setupNavigation() {
       const activeContainer = document.getElementById(`actions-${page}`);
       if (activeContainer) activeContainer.style.display = 'flex';
 
+      // Close filters when switching tabs
+      document.querySelectorAll('.filter-row').forEach(row => row.classList.remove('active'));
+      document.querySelectorAll('.toggle-filter-btn').forEach(btn => btn.classList.remove('btn-active'));
+      const scansFilters = document.querySelector('#scans-page .filters');
+      if (scansFilters) scansFilters.style.display = 'none';
+
       // Load page content
       // Очищаем интервал обновления realtime карты при переходе на другую страницу
       if (realtimeUpdateInterval) {
@@ -175,7 +181,10 @@ function setupEventListeners() {
   });
   safeAddEventListener('addCheckpointHeader', 'click', () => showCheckpointModal());
   safeAddEventListener('addEmployeeHeader', 'click', () => showEmployeeModal());
-  safeAddEventListener('applyScanFilter', 'click', loadScans);
+  safeAddEventListener('applyScanFilter', 'click', () => {
+    // Assuming loadScans handles its own pagination reset or starts from page 1 by default
+    loadScans();
+  });
   safeAddEventListener('clearScanFilter', 'click', clearScanFilter);
   safeAddEventListener('exportScansHeader', 'click', exportScansToCSV);
 
@@ -203,6 +212,25 @@ function setupEventListeners() {
 
   safeAddEventListener('selectAllEmployees', 'change', (e) => toggleAllEmployees(e.target.checked));
   safeAddEventListener('bulk-deactivate', 'click', bulkDeactivateEmployees);
+
+  // Toggle filter visibility
+  document.querySelectorAll('.toggle-filter-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const tableType = this.getAttribute('data-table');
+      if (tableType === 'employees') {
+        const row = document.getElementById('employees-filter-row');
+        row.classList.toggle('active');
+        this.classList.toggle('btn-active');
+      } else if (tableType === 'scans') {
+        const filtersContainer = document.querySelector('#scans-page .filters');
+        if (filtersContainer) {
+          const isFlex = window.getComputedStyle(filtersContainer).display === 'flex';
+          filtersContainer.style.display = isFlex ? 'none' : 'flex';
+          this.classList.toggle('btn-active');
+        }
+      }
+    });
+  });
 }
 
 function handleLogout() {
@@ -1337,9 +1365,9 @@ async function loadEmployees() {
 }
 
 function applyEmployeeFilters() {
-  const fId = document.getElementById('filter-emp-id')?.value.toLowerCase() || '';
-  const fName = document.getElementById('filter-emp-name')?.value.toLowerCase() || '';
-  const fPhone = document.getElementById('filter-emp-phone')?.value.toLowerCase() || '';
+  const fId = document.getElementById('filter-emp-id')?.value.toLowerCase().trim() || '';
+  const fName = document.getElementById('filter-emp-name')?.value.toLowerCase().trim() || '';
+  const fPhone = document.getElementById('filter-emp-phone')?.value.toLowerCase().trim() || '';
   const fRole = document.getElementById('filter-emp-role')?.value || '';
   const fStatus = document.getElementById('filter-emp-status')?.value || '';
 
@@ -1446,10 +1474,9 @@ function renderEmployeePagination(totalItems) {
 
 function changeEmployeePage(page) {
   employeeCurrentPage = page;
-  // Не сбрасываем фильтры, просто перерисовываем текущий срез
-  const fId = document.getElementById('filter-emp-id')?.value.toLowerCase() || '';
-  const fName = document.getElementById('filter-emp-name')?.value.toLowerCase() || '';
-  const fPhone = document.getElementById('filter-emp-phone')?.value.toLowerCase() || '';
+  const fId = document.getElementById('filter-emp-id')?.value.toLowerCase().trim() || '';
+  const fName = document.getElementById('filter-emp-name')?.value.toLowerCase().trim() || '';
+  const fPhone = document.getElementById('filter-emp-phone')?.value.toLowerCase().trim() || '';
   const fRole = document.getElementById('filter-emp-role')?.value || '';
   const fStatus = document.getElementById('filter-emp-status')?.value || '';
 

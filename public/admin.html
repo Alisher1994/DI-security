@@ -155,6 +155,9 @@
                     </div>
 
                     <div id="actions-scans" class="tab-actions" style="display: none;">
+                        <button class="btn btn-primary toggle-filter-btn" data-table="scans">
+                            <span class="btn-icon">🔍</span> Фильтр
+                        </button>
                         <button id="exportScansHeader" class="btn btn-primary">
                             <span class="btn-icon">📥</span> Экспорт CSV
                         </button>
@@ -167,6 +170,9 @@
                     </div>
 
                     <div id="actions-employees" class="tab-actions" style="display: none;">
+                        <button class="btn btn-primary toggle-filter-btn" data-table="employees">
+                            <span class="btn-icon">🔍</span> Фильтр
+                        </button>
                         <button id="addEmployeeHeader" class="btn btn-primary">
                             <span class="btn-icon">➕</span> Добавить сотрудника
                         </button>
@@ -348,7 +354,7 @@
                                 <th>Дата/Время добавления</th>
                                 <th>Действия</th>
                             </tr>
-                            <tr class="filter-row">
+                            <tr id="employees-filter-row" class="filter-row">
                                 <th></th>
                                 <th><input type="text" id="filter-emp-id" placeholder="Фильтр..." class="filter-input">
                                 </th>
@@ -371,6 +377,7 @@
                                         <option value="blocked">Заблокирован</option>
                                     </select>
                                 </th>
+                                <th></th>
                                 <th></th>
                             </tr>
                         </thead>
