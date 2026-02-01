@@ -16,6 +16,7 @@ let employeeCurrentPage = 1;
 let employeeItemsPerPage = 10;
 let selectedEmployeeIds = [];
 let isTerritoryModalOpen = false;
+let recentScansLimit = 10;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -186,6 +187,7 @@ function safeAddEventListener(id, event, handler) {
 function setupEventListeners() {
   safeAddEventListener('logout-btn', 'click', handleLogout);
   safeAddEventListener('mobile-logout-btn', 'click', handleLogout);
+  safeAddEventListener('loadMoreRecentScans', 'click', loadMoreRecentScans);
   safeAddEventListener('refresh-dashboard', 'click', () => {
     showNotification('Обновление данных...', 'info');
     loadDashboardStats();
@@ -319,8 +321,8 @@ async function loadDashboard() {
     document.getElementById('activePatrols').textContent = activePatrols.active_patrols.length;
 
     // Load recent scans
-    const scans = await apiRequest('/scans?limit=10');
-    renderRecentScans(scans.scans);
+    recentScansLimit = 10;
+    await fetchRecentScans();
 
     // Load charts
     await loadDashboardCharts();
@@ -446,6 +448,41 @@ function renderRecentScans(scans) {
       </div>
     </div>
   `).join('');
+
+  // Show/Hide "Load More" button
+  const moreContainer = document.getElementById('recentScansMoreContainer');
+  if (moreContainer) {
+    if (scans.length >= recentScansLimit) {
+      moreContainer.style.display = 'block';
+    } else {
+      moreContainer.style.display = 'none';
+    }
+  }
+}
+
+async function fetchRecentScans() {
+  try {
+    const scans = await apiRequest(`/scans?limit=${recentScansLimit}`);
+    renderRecentScans(scans.scans);
+  } catch (error) {
+    console.error('Failed to fetch recent scans:', error);
+  }
+}
+
+async function loadMoreRecentScans() {
+  const btn = document.getElementById('loadMoreRecentScans');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Загрузка...';
+  }
+
+  recentScansLimit += 10;
+  await fetchRecentScans();
+
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = 'Показать еще';
+  }
 }
 
 // Realtime Map

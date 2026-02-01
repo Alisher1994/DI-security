@@ -10,6 +10,7 @@ let gpsWatchId = null;
 let sessionInterval = null;
 let scanCount = 0;
 let territoryPolygon = []; // Охраняемая территория
+let scanHistoryLimit = 5;
 
 // Глобальная переменная для разблокировки звука
 let audioUnlocked = false;
@@ -54,6 +55,7 @@ function setupEventListeners() {
     document.getElementById('scan-qr-btn').addEventListener('click', openQRScanner);
     document.getElementById('close-scanner').addEventListener('click', closeQRScanner);
     document.getElementById('manual-qr-submit').addEventListener('click', submitManualQR);
+    document.getElementById('loadMoreHistory').addEventListener('click', loadMoreHistory);
 
 
 }
@@ -196,6 +198,7 @@ async function initializeMainScreen() {
     await loadTerritory();
 
     // Load scan history
+    scanHistoryLimit = 5;
     await loadScanHistory();
 
     // ПРОВЕРКА АКТИВНОЙ СЕССИИ (Восстановление состояния)
@@ -620,34 +623,59 @@ async function processQRScan(qrCode) {
 // Scan History
 async function loadScanHistory() {
     try {
-        const data = await apiRequest('/scans?limit=10');
-
+        const data = await apiRequest(`/scans?limit=${scanHistoryLimit}`);
         const historyEl = document.getElementById('scan-history');
 
         if (data.scans.length === 0) {
             historyEl.innerHTML = `
-        <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
-          <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
-          <div>Нет сканирований</div>
-        </div>
-      `;
+                <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+                    <div>Нет сканирований</div>
+                </div>
+            `;
             return;
         }
 
         historyEl.innerHTML = data.scans.map(scan => `
-      <div class="scan-item">
-        <div class="scan-icon ${scan.is_valid ? 'success' : 'error'}">
-          ${scan.is_valid ? '✅' : '❌'}
-        </div>
-        <div class="scan-details">
-          <div class="scan-checkpoint">${scan.checkpoint_name}</div>
-          <div class="scan-time">${formatDateTime(scan.scan_time)}</div>
-          ${scan.distance_meters ? `<div class="scan-distance">Расстояние: ${Math.round(scan.distance_meters)} м</div>` : ''}
-        </div>
-      </div>
-    `).join('');
+            <div class="scan-item">
+                <div class="scan-icon ${scan.is_valid ? 'success' : 'error'}">
+                    ${scan.is_valid ? '✅' : '❌'}
+                </div>
+                <div class="scan-details">
+                    <div class="scan-checkpoint">${scan.checkpoint_name}</div>
+                    <div class="scan-time">${formatDateTime(scan.scan_time)}</div>
+                    ${scan.distance_meters ? `<div class="scan-distance">Расстояние: ${Math.round(scan.distance_meters)} м</div>` : ''}
+                </div>
+            </div>
+        `).join('');
+
+        // Show/Hide "Load More" button
+        const moreContainer = document.getElementById('scanHistoryMoreContainer');
+        if (moreContainer) {
+            if (data.scans.length >= scanHistoryLimit) {
+                moreContainer.style.display = 'block';
+            } else {
+                moreContainer.style.display = 'none';
+            }
+        }
     } catch (error) {
         console.error('Failed to load scan history:', error);
+    }
+}
+
+async function loadMoreHistory() {
+    const btn = document.getElementById('loadMoreHistory');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Загрузка...';
+    }
+
+    scanHistoryLimit += 5;
+    await loadScanHistory();
+
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Показать еще';
     }
 }
 
@@ -662,17 +690,17 @@ function showNotification(message, type = 'info') {
     // Simple notification using a temporary div
     const notification = document.createElement('div');
     notification.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 1rem 1.5rem;
-    background: ${type === 'success' ? 'var(--success-color)' : 'var(--danger-color)'};
-    color: white;
-    border-radius: 0.5rem;
-    box-shadow: var(--shadow-lg);
-    z-index: 10000;
-    animation: slideIn 0.3s ease-out;
-  `;
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 1rem 1.5rem;
+        background: ${type === 'success' ? 'var(--success-color)' : 'var(--danger-color)'};
+        color: white;
+        border - radius: 0.5rem;
+        box - shadow: var(--shadow - lg);
+        z - index: 10000;
+        animation: slideIn 0.3s ease - out;
+        `;
     notification.textContent = message;
 
     document.body.appendChild(notification);
@@ -698,28 +726,28 @@ function formatDateTime(dateString) {
 // Add animations to CSS
 const style = document.createElement('style');
 style.textContent = `
-  @keyframes slideIn {
+        @keyframes slideIn {
     from {
-      transform: translateX(400px);
-      opacity: 0;
-    }
+                transform: translateX(400px);
+                opacity: 0;
+            }
     to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
-  
-  @keyframes slideOut {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
     from {
-      transform: translateX(0);
-      opacity: 1;
-    }
+                transform: translateX(0);
+                opacity: 1;
+            }
     to {
-      transform: translateX(400px);
-      opacity: 0;
-    }
-  }
-`;
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+        `;
 document.head.appendChild(style);
 
 // УПРАВЛЕНИЕ ТЕРРИТОРИЕЙ (Geofencing)

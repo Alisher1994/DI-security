@@ -26,7 +26,7 @@
         <div class="login-container">
             <div class="logo">
                 <img src="/images/logo.svg" alt="DI Security Logo" style="width: 200px; margin-bottom: 1rem;">
-                <h1>Система Охраны</h1>
+                <h1> </h1>
             </div>
             <form id="login-form" class="login-form">
                 <div class="form-group">
@@ -44,6 +44,16 @@
                 <button type="submit" class="btn btn-primary">Войти</button>
                 <div id="login-error" class="error-message"></div>
             </form>
+        </div>
+
+        <!-- Ticker -->
+        <div class="bottom-ticker">
+            <div class="ticker-content">
+                По вопросам улучшения или системного сбоя:
+                <a href="https://t.me/alishermusayev94" target="_blank">Telegram</a> |
+                <a href="tel:+998994067406">📞+998 99 4067406</a>
+                Алишер - Приложение разработано YTT "MUSAYEV ALISHER" 2026
+            </div>
         </div>
     </div>
 
@@ -149,6 +159,11 @@
             <div class="control-card">
                 <h2 class="section-title">История сканирований</h2>
                 <div id="scan-history" class="scan-history"></div>
+                <div id="scanHistoryMoreContainer" style="text-align: center; margin-top: 1rem; display: none;">
+                    <button id="loadMoreHistory" class="btn-primary"
+                        style="padding: 0.75rem 1.5rem; max-width: 250px; margin: 0 auto; display: block;">Показать
+                        еще</button>
+                </div>
             </div>
         </section>
 
