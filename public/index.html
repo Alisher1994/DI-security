@@ -6,11 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Система Охраны - Сотрудник</title>
     <link rel="stylesheet" href="/css/employee.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
     <script src="https://api-maps.yandex.ru/2.1/?apikey=&lang=ru_RU" type="text/javascript"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
 
 <body>
+    <!-- Network Status Indicator -->
+    <div id="offline-indicator"
+        style="display: none; position: fixed; top: 0; left: 0; right: 0; background: #ef4444; color: white; text-align: center; font-size: 0.75rem; padding: 4px; z-index: 11000;">
+        ⚠️ Режим оффлайн. Данные будут отправлены при появлении сети.
+    </div>
     <!-- Предупреждение о выходе из зоны -->
     <div id="geofence-alert" class="geofence-alert" style="display: none;">
         <div class="alert-content">
@@ -196,7 +203,7 @@
         </div>
     </div>
 
-    <script src="/js/employee-app.js?v=2.5"></script>
+    <script src="/js/employee-app.js?v=2.6"></script>
 </body>
 
 </html>

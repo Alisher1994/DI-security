@@ -44,7 +44,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setupEventListeners();
+    registerServiceWorker();
+
+    // Check network status
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+    updateNetworkStatus();
 });
+
+function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('🚀 Service Worker зарегистрирован!', reg.scope))
+            .catch(err => console.error('❌ Ошибка регистрация Service Worker:', err));
+    }
+}
+
+function updateNetworkStatus() {
+    const indicator = document.getElementById('offline-indicator');
+    if (navigator.onLine) {
+        indicator.style.display = 'none';
+        syncOfflineData();
+    } else {
+        indicator.style.display = 'block';
+    }
+}
 
 // Event Listeners
 function setupEventListeners() {
@@ -553,14 +577,34 @@ async function processQRScan(qrCode) {
         const { latitude, longitude, accuracy } = position.coords;
         console.log(`📍 Мои координаты: ${latitude}, ${longitude} (Точность: ${accuracy}м)`);
 
+        const scanData = {
+            qr_code_data: qrCode,
+            latitude,
+            longitude,
+            scan_time: new Date().toISOString()
+        };
+
+        if (!navigator.onLine) {
+            // OFFLINE MODE
+            queueOfflineScan(scanData);
+            resultEl.innerHTML = `
+                <div style="text-align: center;">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">💾</div>
+                    <div style="font-weight: 700; color: var(--warning-color); margin-bottom: 0.25rem;">СОХРАНЕНО ОФФЛАЙН</div>
+                    <div style="font-size: 0.8rem;">Данные будут отправлены при появлении сети</div>
+                </div>
+            `;
+            // Reset modal if manual input
+            if (document.getElementById('qr-scanner-modal').classList.contains('active')) {
+                setTimeout(closeQRScanner, 1500);
+            }
+            return;
+        }
+
         try {
             const data = await apiRequest('/scans/scan', {
                 method: 'POST',
-                body: JSON.stringify({
-                    qr_code_data: qrCode,
-                    latitude,
-                    longitude
-                })
+                body: JSON.stringify(scanData)
             });
 
             console.log('✅ Ответ сервера:', data);
@@ -577,40 +621,22 @@ async function processQRScan(qrCode) {
                     <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">✅</div>
                     <div style="font-weight: 700; color: var(--success-color); margin-bottom: 0.25rem;">ОТМЕТКА ПРИНЯТА</div>
                     <div style="font-size: 1rem; font-weight: 600;">${data.checkpoint.name}</div>
-                    <div style="font-size: 0.75rem; margin-top: 0.5rem; color: var(--text-muted);">
-                        Расстояние: ${Math.round(data.distance_meters)} м
-                    </div>
                 </div>
             `;
             showNotification('Отметка успешно сохранена', 'success');
 
-            // Если было открыто модальное окно (ручной ввод), закрываем его
             if (document.getElementById('qr-scanner-modal').classList.contains('active')) {
-                setTimeout(() => {
-                    closeQRScanner();
-                }, 1500);
+                setTimeout(closeQRScanner, 1500);
             }
 
-            // Перезагружаем историю через 3 секунды и очищаем результат
             setTimeout(() => {
                 loadScanHistory();
                 resultEl.innerHTML = '';
-                resultEl.className = 'scan-result';
             }, 5000);
 
         } catch (error) {
             console.error('❌ Ошибка сканирования:', error);
-
-            resultEl.innerHTML = `
-                <div style="text-align: center;">
-                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">❌</div>
-                    <div style="font-weight: 700; color: var(--danger-color); margin-bottom: 0.25rem;">НЕ СОХРАНЕНО</div>
-                    <div style="font-size: 0.875rem;">${error.message}</div>
-                </div>
-            `;
-            resultEl.className = 'scan-result error';
-
-            showNotification(error.message, 'error');
+            handleScanError(error, resultEl);
         }
     }, (error) => {
         console.error('❌ Ошибка GPS:', error);
@@ -621,6 +647,52 @@ async function processQRScan(qrCode) {
         timeout: 10000,
         maximumAge: 0
     });
+}
+
+function queueOfflineScan(scan) {
+    const queue = JSON.parse(localStorage.getItem('offline_scans') || '[]');
+    queue.push(scan);
+    localStorage.setItem('offline_scans', JSON.stringify(queue));
+    showNotification('Данные сохранены локально (оффлайн)', 'info');
+}
+
+async function syncOfflineData() {
+    const queue = JSON.parse(localStorage.getItem('offline_scans') || '[]');
+    if (queue.length === 0) return;
+
+    console.log(`🔄 Синхронизация данных: ${queue.length} сканов...`);
+    showNotification(`Синхронизация ${queue.length} сохраненных сканов...`, 'info');
+
+    const remaining = [];
+    for (const scan of queue) {
+        try {
+            await apiRequest('/scans/scan', {
+                method: 'POST',
+                body: JSON.stringify(scan)
+            });
+        } catch (error) {
+            console.error('Не удалось отправить скан, оставляем в очереди:', error);
+            remaining.push(scan);
+        }
+    }
+
+    localStorage.setItem('offline_scans', JSON.stringify(remaining));
+    if (remaining.length === 0) {
+        showNotification('Все оффлайн данные синхронизированы', 'success');
+        loadScanHistory();
+    }
+}
+
+function handleScanError(error, resultEl) {
+    resultEl.innerHTML = `
+        <div style="text-align: center;">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">❌</div>
+            <div style="font-weight: 700; color: var(--danger-color); margin-bottom: 0.25rem;">НЕ СОХРАНЕНО</div>
+            <div style="font-size: 0.875rem;">${error.message}</div>
+        </div>
+    `;
+    resultEl.className = 'scan-result error';
+    showNotification(error.message, 'error');
 }
 
 // Scan History

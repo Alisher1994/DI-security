@@ -1,0 +1,29 @@
+{
+    "short_name": "DI Security",
+    "name": "Система Охраны DI Security",
+    "icons": [
+        {
+            "src": "/images/logo.svg",
+            "type": "image/svg+xml",
+            "sizes": "512x512"
+        }
+    ],
+    "start_url": "/",
+    "background_color": "#0f172a",
+    "display": "standalone",
+    "scope": "/",
+    "theme_color": "#2563eb",
+    "shortcuts": [
+        {
+            "name": "Сканировать",
+            "short_name": "Сканер",
+            "url": "/#scanner",
+            "icons": [
+                {
+                    "src": "/images/logo.svg",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ]
+}
