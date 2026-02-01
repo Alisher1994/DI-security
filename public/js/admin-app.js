@@ -464,6 +464,12 @@ function initializeRealtimeMap() {
 
     realtimeMap = L.map('realtime-map').setView([41.204358, 69.234420], 14);
 
+    // Create a pane for territory to stay below markers but above tiles
+    if (!realtimeMap.getPane('territoryPane')) {
+      const pane = realtimeMap.createPane('territoryPane');
+      pane.style.zIndex = 400; // Above tiles, below markers (usually 600+)
+    }
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors',
       maxZoom: 19
@@ -2216,11 +2222,17 @@ function formatDate(dateString) {
 
 // УПРАВЛЕНИЕ ТЕРРИТОРИЕЙ (Geofencing)
 
-async function loadTerritory() {
+async function loadTerritory(shouldFitBounds = false) {
   try {
     const data = await apiRequest('/gps/territory');
+    console.log('📡 Territory loaded:', data.polygon?.length, 'points');
     territoryPolygon = data.polygon || [];
     renderTerritory();
+
+    if (shouldFitBounds && territoryPolygon.length >= 3 && realtimeMap) {
+      const bounds = L.latLngBounds(territoryPolygon);
+      realtimeMap.fitBounds(bounds, { padding: [50, 50] });
+    }
   } catch (error) {
     console.error('Ошибка загрузки территории:', error);
   }
@@ -2236,23 +2248,31 @@ function renderTerritory() {
     } else if (mapProvider === 'yandex') {
       realtimeMap.geoObjects.remove(territoryLayer);
     }
+    territoryLayer = null;
   }
 
-  if (!territoryPolygon || territoryPolygon.length < 3) return;
+  if (!territoryPolygon || territoryPolygon.length < 3) {
+    console.log('ℹ️ Territory polygon empty or invalid');
+    return;
+  }
+
+  console.log('🎨 Rendering territory polygon on map');
 
   if (mapProvider === 'leaflet') {
     territoryLayer = L.polygon(territoryPolygon, {
+      pane: 'territoryPane',
       color: '#ef4444',
       fillColor: '#ef4444',
-      fillOpacity: 0.2,
-      weight: 3,
-      dashArray: '5, 10'
+      fillOpacity: 0.25,
+      weight: 4,
+      dashArray: '10, 10',
+      interactive: false
     }).addTo(realtimeMap);
   } else if (mapProvider === 'yandex') {
     territoryLayer = new ymaps.Polygon([territoryPolygon], {}, {
-      fillColor: '#ef444433',
+      fillColor: '#ef444440',
       strokeColor: '#ef4444',
-      strokeWidth: 3,
+      strokeWidth: 4,
       strokeStyle: 'dash'
     });
     realtimeMap.geoObjects.add(territoryLayer);
