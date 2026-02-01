@@ -54,6 +54,15 @@ async function initializeApp() {
     updateDateTime();
     setInterval(updateDateTime, 1000);
 
+    // Dynamic copyright year
+    const copyrightEl = document.getElementById('developer-copyright');
+    if (copyrightEl) {
+      const startYear = 2026;
+      const currentYear = new Date().getFullYear();
+      const yearStr = currentYear > startYear ? `${startYear} - ${currentYear}` : `${startYear}`;
+      copyrightEl.textContent = `Приложение разработано YTT "MUSAYEV ALISHER" ${yearStr}`;
+    }
+
     // Load initial page
     loadDashboard();
   } catch (error) {
