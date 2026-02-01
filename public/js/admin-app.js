@@ -170,6 +170,7 @@ function safeAddEventListener(id, event, handler) {
 
 function setupEventListeners() {
   safeAddEventListener('logout-btn', 'click', handleLogout);
+  safeAddEventListener('mobile-logout-btn', 'click', handleLogout);
   safeAddEventListener('refresh-dashboard', 'click', () => {
     showNotification('Обновление данных...', 'info');
     loadDashboardStats();

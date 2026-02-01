@@ -1423,3 +1423,158 @@ select.filter-input {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
     white-space: nowrap;
 }
+
+/* Mobile Responsive Styles */
+.mobile-nav {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 65px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    z-index: 1000;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 0.5rem;
+}
+
+.mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.65rem;
+    padding: 0.5rem;
+    flex: 1;
+    transition: all 0.2s;
+}
+
+.mobile-nav-item .nav-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.mobile-nav-item.active {
+    color: var(--text-primary);
+}
+
+.mobile-nav-item.active .nav-icon {
+    color: var(--info);
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        display: none;
+    }
+
+    .mobile-nav {
+        display: flex;
+    }
+
+    .main-content {
+        padding-bottom: 70px;
+        /* Space for bottom nav */
+    }
+
+    .page-header {
+        padding: 0 1rem;
+    }
+
+    .header-tab-actions {
+        overflow-x: auto;
+        padding-bottom: 5px;
+    }
+
+    .tab-actions {
+        gap: 0.5rem;
+    }
+
+    /* Support info hidden on mobile */
+    .support-info {
+        display: none !important;
+    }
+
+    /* Table Mobile View */
+    .table-container {
+        border-radius: 0.5rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .data-table {
+        min-width: 600px;
+        /* Ensure table doesn't collapse too much */
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    /* Analytics cards on mobile */
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+    }
+
+    .stat-card {
+        padding: 1rem;
+    }
+
+    .stat-value {
+        font-size: 1.25rem;
+    }
+
+    /* Full width for modals on mobile */
+    .modal-content {
+        width: 95% !important;
+        margin: 10px auto;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    /* Filters on mobile */
+    .filters-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .filter-group {
+        width: 100%;
+    }
+
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+    }
+
+    /* Mobile Only Elements */
+    .mobile-logout {
+        display: flex !important;
+        margin-left: auto;
+    }
+
+    .sidebar-footer,
+    .sidebar-header,
+    .sidebar-nav {
+        display: none;
+    }
+
+    .header-actions {
+        display: none !important;
+    }
+
+    .page-header {
+        justify-content: space-between;
+    }
+}
+
+.mobile-logout {
+    display: none;
+}
