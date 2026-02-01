@@ -178,7 +178,10 @@ async function initializeMainScreen() {
     // Update user info
     const initials = currentUser.full_name.split(' ').map(n => n[0]).join('');
     document.getElementById('user-initials').textContent = initials;
-    document.getElementById('user-name').textContent = currentUser.full_name;
+    // Display only Last Name and First Name (first two words)
+    const nameParts = currentUser.full_name.split(' ');
+    const displayName = nameParts.length > 2 ? `${nameParts[0]} ${nameParts[1]}` : currentUser.full_name;
+    document.getElementById('user-name').textContent = displayName;
     document.getElementById('user-role').textContent = getRoleLabel(currentUser.role);
 
     // Show patrol controls if user is patrol
