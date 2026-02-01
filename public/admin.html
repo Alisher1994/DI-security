@@ -455,7 +455,27 @@
         </div>
     </div>
 
-    <script src="/js/admin-app.js?v=2.7"></script>
+    <!-- Scan Timeline Modal -->
+    <div id="scanTimelineModal" class="modal">
+        <div class="modal-content" style="max-width: 1000px; width: 95%;">
+            <div class="modal-header">
+                <h2 id="timelineModalTitle">Маршрут сканирования</h2>
+                <button class="close-modal" id="closeTimelineModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="timeline-container">
+                    <div id="scanTimeline" class="timeline">
+                        <!-- Timeline items will be dynamic -->
+                    </div>
+                </div>
+                <div id="timeline-map"
+                    style="height: 500px; border-radius: 12px; border: 1px solid var(--border); margin-top: 1rem;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/admin-app.js?v=2.8"></script>
 </body>
 
 </html>

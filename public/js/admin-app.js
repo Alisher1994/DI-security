@@ -245,6 +245,10 @@ function setupEventListeners() {
     document.getElementById('territoryModal').style.display = 'none';
   });
 
+  safeAddEventListener('closeTimelineModal', 'click', () => {
+    document.getElementById('scanTimelineModal').style.display = 'none';
+  });
+
   // Toggle filter visibility
   document.querySelectorAll('.toggle-filter-btn').forEach(btn => {
     btn.addEventListener('click', function () {
@@ -916,29 +920,36 @@ function renderScansSummary(scans) {
 
   summarySection.style.display = 'block';
 
-  // Группировка
+  // Группировка по userId
   const summary = scans.reduce((acc, scan) => {
-    const key = scan.user_name || `ID: ${scan.user_id}`;
-    if (!acc[key]) {
-      acc[key] = {
+    const uid = scan.user_id;
+    if (!acc[uid]) {
+      acc[uid] = {
+        userId: uid,
+        name: scan.user_name || `ID: ${uid}`,
         count: 0,
         lastSeen: scan.scan_time,
         checkpoints: new Set()
       };
     }
-    acc[key].count++;
-    acc[key].checkpoints.add(scan.checkpoint_name);
-    if (new Date(scan.scan_time) > new Date(acc[key].lastSeen)) {
-      acc[key].lastSeen = scan.scan_time;
+    acc[uid].count++;
+    acc[uid].checkpoints.add(scan.checkpoint_name);
+    if (new Date(scan.scan_time) > new Date(acc[uid].lastSeen)) {
+      acc[uid].lastSeen = scan.scan_time;
     }
     return acc;
   }, {});
 
-  tbody.innerHTML = Object.entries(summary).sort((a, b) => b[1].count - a[1].count).map(([name, stats]) => `
+  tbody.innerHTML = Object.values(summary).sort((a, b) => b.count - a.count).map(stats => `
     <tr>
-      <td style="font-weight: 600;">${name}</td>
+      <td style="font-weight: 600;">${stats.name}</td>
       <td>
-        <span class="badge badge-primary" style="font-size: 1rem; padding: 0.5rem 1rem;">${stats.count}</span>
+        <span class="badge badge-primary" 
+              style="font-size: 1rem; padding: 0.5rem 1rem; cursor: pointer;"
+              onclick="showScanTimelineModal(${stats.userId}, '${stats.name.replace(/'/g, "\\'")}')"
+              title="Посмотреть маршрут">
+          ${stats.count}
+        </span>
       </td>
       <td>${formatDateTime(stats.lastSeen)}</td>
       <td style="color: var(--text-muted); font-size: 0.8rem;">
@@ -946,6 +957,116 @@ function renderScansSummary(scans) {
       </td>
     </tr>
   `).join('');
+}
+
+let timelineMap = null;
+let timelineLayers = [];
+
+async function showScanTimelineModal(userId, userName) {
+  const modal = document.getElementById('scanTimelineModal');
+  document.getElementById('timelineModalTitle').textContent = `Маршрут: ${userName}`;
+  modal.style.display = 'block';
+
+  // Get date filters from the scans page if they exist
+  const fromDate = document.getElementById('scanFilterFrom')?.value;
+  const toDate = document.getElementById('scanFilterTo')?.value;
+
+  let url = `/scans?user_id=${userId}`;
+  if (fromDate) url += `&from_date=${fromDate}T00:00:00`;
+  if (toDate) url += `&to_date=${toDate}T23:59:59`;
+
+  try {
+    const data = await apiRequest(url);
+    const scans = data.scans.sort((a, b) => new Date(a.scan_time) - new Date(b.scan_time));
+
+    renderTimeline(scans);
+
+    setTimeout(() => {
+      initTimelineMap(scans);
+    }, 300);
+  } catch (error) {
+    console.error('Failed to load timeline:', error);
+    showNotification('Ошибка загрузки маршрута', 'error');
+  }
+}
+
+function renderTimeline(scans) {
+  const container = document.getElementById('scanTimeline');
+  if (scans.length === 0) {
+    container.innerHTML = '<div style="color: var(--text-muted);">Нет данных для отображения</div>';
+    return;
+  }
+
+  container.innerHTML = scans.map((scan, index) => `
+    <div class="timeline-item">
+      <div class="timeline-number">${index + 1}</div>
+      <div class="timeline-checkpoint" title="${scan.checkpoint_name}">${scan.checkpoint_name}</div>
+      <div class="timeline-dot"></div>
+      <div class="timeline-time">${new Date(scan.scan_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
+    </div>
+  `).join('');
+}
+
+function initTimelineMap(scans) {
+  if (timelineMap) {
+    timelineMap.remove();
+    timelineMap = null;
+  }
+
+  timelineMap = L.map('timeline-map').setView([41.204358, 69.234420], 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(timelineMap);
+
+  const points = [];
+  const markers = [];
+
+  scans.forEach((scan, index) => {
+    if (scan.latitude && scan.longitude) {
+      const latlng = [scan.latitude, scan.longitude];
+      points.push(latlng);
+
+      const marker = L.marker(latlng, {
+        icon: L.divIcon({
+          className: 'custom-route-marker',
+          html: `
+            <div style="position: relative;">
+              <div style="font-size: 24px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">📍</div>
+              <div class="route-number" style="position: absolute; top: -5px; right: -5px; background: white; border: 2px solid var(--primary); color: var(--primary); border-radius: 50%; width: 18px; height: 18px; font-weight: bold; font-size: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                ${index + 1}
+              </div>
+            </div>
+          `,
+          iconSize: [30, 30],
+          iconAnchor: [15, 25]
+        }
+      }).addTo(timelineMap);
+
+      marker.bindPopup(`
+        <strong>#${index + 1} - ${scan.checkpoint_name}</strong><br>
+        Время: ${new Date(scan.scan_time).toLocaleTimeString('ru-RU')}<br>
+        Дистанция: ${Math.round(scan.distance_meters)}м
+      `);
+
+      markers.push(marker);
+    }
+  });
+
+  if (points.length >= 2) {
+    const polyline = L.polyline(points, {
+      color: 'var(--primary)',
+      weight: 4,
+      opacity: 0.7,
+      dashArray: '10, 10',
+      smoothFactor: 1
+    }).addTo(timelineMap);
+
+    // Добавляем стрелочки? Leaflet.PolylineDecorator был бы хорош, но мы на чистом Leaflet
+    // Просто сделаем линию яркой
+  }
+
+  if (points.length > 0) {
+    const group = new L.featureGroup(markers);
+    timelineMap.fitBounds(group.getBounds().pad(0.1));
+  }
 }
 
 function populateEmployeeFilter(employees) {
