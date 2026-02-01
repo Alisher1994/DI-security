@@ -15,7 +15,7 @@ router.get('/', authenticateToken, async (req, res) => {
         let query = `
       SELECT 
         s.id, s.scan_time, s.latitude, s.longitude, s.distance_meters, s.is_valid, s.notes,
-        u.full_name as user_name, u.role as user_role,
+        u.id as user_id, u.full_name as user_name, u.role as user_role,
         c.name as checkpoint_name, c.checkpoint_type,
         sh.shift_date, sh.shift_start, sh.shift_end
       FROM scans s
@@ -31,7 +31,7 @@ router.get('/', authenticateToken, async (req, res) => {
         if (role !== 'admin') {
             query += ` AND s.user_id = $${counter++}`;
             values.push(userId);
-        } else if (user_id) {
+        } else if (user_id && user_id !== 'undefined') {
             query += ` AND s.user_id = $${counter++}`;
             values.push(user_id);
         }

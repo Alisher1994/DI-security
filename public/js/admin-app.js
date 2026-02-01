@@ -922,7 +922,10 @@ function renderScansSummary(scans) {
 
   // Группировка по userId
   const summary = scans.reduce((acc, scan) => {
-    const uid = scan.user_id;
+    // console.log('DEBUG: scan object:', scan);
+    const uid = scan.user_id || scan.userId; // Try both casings just in case
+    if (!uid) return acc;
+
     if (!acc[uid]) {
       acc[uid] = {
         userId: uid,
