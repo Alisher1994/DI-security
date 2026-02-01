@@ -236,6 +236,12 @@ function setupEventListeners() {
 
   safeAddEventListener('download-selected-qrs', 'click', downloadSelectedQrs);
 
+  safeAddEventListener('delete-territory-btn-header', 'click', deleteTerritory);
+  safeAddEventListener('delete-territory-btn', 'click', () => {
+    deleteTerritory();
+    document.getElementById('territoryModal').style.display = 'none';
+  });
+
   // Toggle filter visibility
   document.querySelectorAll('.toggle-filter-btn').forEach(btn => {
     btn.addEventListener('click', function () {
@@ -2368,4 +2374,33 @@ async function saveTerritory() {
 function toggleTerritoryEditMode() {
   // This is now handled by modal, but we can keep it as legacy or redirect
   showTerritoryModal();
+}
+
+async function deleteTerritory() {
+  if (!confirm('Вы уверены, что хотите полностью удалить границы территории?')) return;
+
+  try {
+    await apiRequest('/gps/territory', {
+      method: 'POST',
+      body: JSON.stringify({ polygon: [] })
+    });
+
+    territoryPolygon = [];
+
+    // Cleanup modal markers if any
+    if (territoryModalMarkers) {
+      territoryModalMarkers.forEach(m => m.remove());
+      territoryModalMarkers = [];
+    }
+    if (territoryModalLayer && territoryModalMap) {
+      territoryModalMap.removeLayer(territoryModalLayer);
+      territoryModalLayer = null;
+    }
+
+    renderTerritory();
+    showNotification('Территория удалена', 'success');
+  } catch (error) {
+    console.error('Ошибка удаления территории:', error);
+    showNotification('Не удалось удалить территорию', 'error');
+  }
 }

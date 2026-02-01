@@ -146,7 +146,7 @@
                         <button class="btn btn-primary" id="territory-btn-header">
                             <span class="btn-icon">📐</span> Граница
                         </button>
-                        <button class="btn btn-primary" id="delete-territory-btn-header" onclick="deleteTerritory()">
+                        <button class="btn btn-primary" id="delete-territory-btn-header">
                             <span class="btn-icon">🗑️</span> Удалить зону
                         </button>
                         <button id="add-checkpoint-map-header" class="btn btn-primary">
@@ -238,31 +238,7 @@
 
 
 
-                <!-- Territory Edit Modal -->
-                <div id="territoryModal" class="modal">
-                    <div class="modal-content" style="max-width: 900px;">
-                        <div class="modal-header">
-                            <h2>Редактирование границ территории</h2>
-                            <button class="close-modal" id="closeTerritoryModal">&times;</button>
-                        </div>
-                        <div class="modal-body">
-                            <p style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.9rem;">
-                                Кликайте по карте, чтобы поставить точки границ. Правый клик по точке удаляет её.
-                                После завершения нажмите «Сохранить».
-                            </p>
-                            <div id="territory-modal-map"
-                                style="height: 500px; border-radius: 12px; border: 1px solid var(--border);"></div>
-                            <div class="form-actions" style="margin-top: 1.5rem; justify-content: flex-end;">
-                                <button class="btn btn-secondary" id="cancel-territory"
-                                    style="margin-right: 1rem;">Отмена</button>
-                                <button class="btn btn-danger"
-                                    onclick="deleteTerritory(); document.getElementById('territoryModal').style.display='none';"
-                                    style="margin-right: auto;">Удалить всё</button>
-                                <button class="btn btn-success" id="save-territory-modal">Сохранить границы</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+
 
                 <!-- Charts -->
                 <div class="charts-grid-single">
@@ -455,7 +431,31 @@
         </div>
     </div>
 
-    <script src="/js/admin-app.js?v=2.3"></script>
+    <!-- Territory Edit Modal -->
+    <div id="territoryModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>Редактирование границ территории</h2>
+                <button class="close-modal" id="closeTerritoryModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.9rem;">
+                    Кликайте по карте, чтобы поставить точки границ. Правый клик по точке удаляет её.
+                    После завершения нажмите «Сохранить».
+                </p>
+                <div id="territory-modal-map"
+                    style="height: 500px; border-radius: 12px; border: 1px solid var(--border);"></div>
+                <div class="form-actions" style="margin-top: 1.5rem; justify-content: flex-end;">
+                    <button class="btn btn-secondary" id="cancel-territory" style="margin-right: 1rem;">Отмена</button>
+                    <button class="btn btn-danger" id="delete-territory-btn" style="margin-right: auto;">Удалить
+                        всё</button>
+                    <button class="btn btn-success" id="save-territory-modal">Сохранить границы</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/admin-app.js?v=2.4"></script>
 </body>
 
 </html>
