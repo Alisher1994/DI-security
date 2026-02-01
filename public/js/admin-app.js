@@ -946,7 +946,7 @@ function renderScansSummary(scans) {
       <td>
         <span class="badge badge-primary" 
               style="font-size: 1rem; padding: 0.5rem 1rem; cursor: pointer;"
-              onclick="showScanTimelineModal(${stats.userId}, '${stats.name.replace(/'/g, "\\'")}')"
+              onclick="showScanTimelineModal(${stats.userId}, ${JSON.stringify(stats.name).replace(/"/g, '&quot;')})"
               title="Посмотреть маршрут">
           ${stats.count}
         </span>
@@ -1024,10 +1024,9 @@ function initTimelineMap(scans) {
       const latlng = [scan.latitude, scan.longitude];
       points.push(latlng);
 
-      const marker = L.marker(latlng, {
-        icon: L.divIcon({
-          className: 'custom-route-marker',
-          html: `
+      const markerIcon = L.divIcon({
+        className: 'custom-route-marker',
+        html: `
             <div style="position: relative;">
               <div style="font-size: 24px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">📍</div>
               <div class="route-number" style="position: absolute; top: -5px; right: -5px; background: white; border: 2px solid var(--primary); color: var(--primary); border-radius: 50%; width: 18px; height: 18px; font-weight: bold; font-size: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
@@ -1035,10 +1034,11 @@ function initTimelineMap(scans) {
               </div>
             </div>
           `,
-          iconSize: [30, 30],
-          iconAnchor: [15, 25]
-        }
-      }).addTo(timelineMap);
+        iconSize: [30, 30],
+        iconAnchor: [15, 25]
+      });
+
+      const marker = L.marker(latlng, { icon: markerIcon }).addTo(timelineMap);
 
       marker.bindPopup(`
         <strong>#${index + 1} - ${scan.checkpoint_name}</strong><br>
@@ -1051,16 +1051,13 @@ function initTimelineMap(scans) {
   });
 
   if (points.length >= 2) {
-    const polyline = L.polyline(points, {
+    L.polyline(points, {
       color: 'var(--primary)',
       weight: 4,
       opacity: 0.7,
       dashArray: '10, 10',
       smoothFactor: 1
     }).addTo(timelineMap);
-
-    // Добавляем стрелочки? Leaflet.PolylineDecorator был бы хорош, но мы на чистом Leaflet
-    // Просто сделаем линию яркой
   }
 
   if (points.length > 0) {
