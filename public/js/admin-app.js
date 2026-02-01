@@ -15,6 +15,7 @@ let allEmployees = []; // Хранилище всех сотрудников д�
 let employeeCurrentPage = 1;
 let employeeItemsPerPage = 10;
 let selectedEmployeeIds = [];
+let isTerritoryModalOpen = false;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -219,10 +220,12 @@ function setupEventListeners() {
 
   safeAddEventListener('closeTerritoryModal', 'click', () => {
     document.getElementById('territoryModal').style.display = 'none';
+    isTerritoryModalOpen = false;
   });
 
   safeAddEventListener('cancel-territory', 'click', () => {
     document.getElementById('territoryModal').style.display = 'none';
+    isTerritoryModalOpen = false;
   });
 
   safeAddEventListener('save-territory-modal', 'click', saveTerritory);
@@ -2224,6 +2227,12 @@ function formatDate(dateString) {
 
 async function loadTerritory(shouldFitBounds = false) {
   try {
+    // Prevent background update from overwriting unsaved changes in modal
+    if (isTerritoryModalOpen) {
+      console.log('⏳ Skipping territory background update while modal is open');
+      return;
+    }
+
     const data = await apiRequest('/gps/territory');
     console.log('📡 Territory loaded:', data.polygon?.length, 'points');
     territoryPolygon = data.polygon || [];
@@ -2286,6 +2295,7 @@ let territoryModalLayer = null;
 async function showTerritoryModal() {
   const modal = document.getElementById('territoryModal');
   modal.style.display = 'block';
+  isTerritoryModalOpen = true;
 
   setTimeout(async () => {
     if (!territoryModalMap) {
@@ -2327,32 +2337,64 @@ async function showTerritoryModal() {
 }
 
 function addTerritoryModalPoint(lat, lng) {
+  const index = territoryPolygon.length;
   territoryPolygon.push([lat, lng]);
 
   const marker = L.circleMarker([lat, lng], {
-    radius: 6,
+    radius: 8,
     color: '#ffffff',
     weight: 2,
     fillColor: '#ef4444',
     fillOpacity: 1,
-    interactive: true
+    interactive: true,
+    draggable: true // Enable dragging for fine-tuning
   }).addTo(territoryModalMap);
 
-  marker.on('contextmenu', (e) => {
-    L.DomEvent.stopPropagation(e);
-    removeTerritoryModalPoint(lat, lng, marker);
+  // Leaflet.circleMarker doesn't natively support dragging like L.marker, 
+  // so we'll use L.marker if we want draggability easily, or implement it.
+  // Using standard marker with custom icon for better UX.
+
+  marker.remove(); // Remove circleMarker, use real marker
+
+  const icon = L.divIcon({
+    className: 'territory-drag-marker',
+    html: `<div style="width: 12px; height: 12px; background: #ef4444; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+    iconSize: [12, 12],
+    iconAnchor: [6, 6]
   });
 
-  territoryModalMarkers.push(marker);
+  const dragMarker = L.marker([lat, lng], {
+    icon: icon,
+    draggable: true
+  }).addTo(territoryModalMap);
+
+  dragMarker.on('drag', (e) => {
+    const newLatLng = e.target.getLatLng();
+    // Update coordinates in the array
+    const mIndex = territoryModalMarkers.indexOf(dragMarker);
+    if (mIndex > -1) {
+      territoryPolygon[mIndex] = [newLatLng.lat, newLatLng.lng];
+      updateModalTerritoryVisual();
+    }
+  });
+
+  dragMarker.on('contextmenu', (e) => {
+    L.DomEvent.stopPropagation(e);
+    const mIndex = territoryModalMarkers.indexOf(dragMarker);
+    if (mIndex > -1) {
+      removeTerritoryModalPoint(mIndex, dragMarker);
+    }
+  });
+
+  territoryModalMarkers.push(dragMarker);
   updateModalTerritoryVisual();
 }
 
-function removeTerritoryModalPoint(lat, lng, marker) {
-  const index = territoryPolygon.findIndex(p => p[0] === lat && p[1] === lng);
+function removeTerritoryModalPoint(index, marker) {
   if (index > -1) {
     territoryPolygon.splice(index, 1);
     marker.remove();
-    territoryModalMarkers = territoryModalMarkers.filter(m => m !== marker);
+    territoryModalMarkers.splice(index, 1);
     updateModalTerritoryVisual();
   }
 }
@@ -2383,6 +2425,7 @@ async function saveTerritory() {
     });
     showNotification('Границы сохранены', 'success');
     document.getElementById('territoryModal').style.display = 'none';
+    isTerritoryModalOpen = false;
 
     // Refresh main map
     renderTerritory();
