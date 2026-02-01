@@ -2242,17 +2242,17 @@ function renderTerritory() {
 
   if (mapProvider === 'leaflet') {
     territoryLayer = L.polygon(territoryPolygon, {
-      color: '#3b82f6',
-      fillColor: '#3b82f6',
-      fillOpacity: 0.1,
-      weight: 2,
+      color: '#ef4444',
+      fillColor: '#ef4444',
+      fillOpacity: 0.2,
+      weight: 3,
       dashArray: '5, 10'
     }).addTo(realtimeMap);
   } else if (mapProvider === 'yandex') {
     territoryLayer = new ymaps.Polygon([territoryPolygon], {}, {
-      fillColor: '#3b82f620',
-      strokeColor: '#3b82f6',
-      strokeWidth: 2,
+      fillColor: '#ef444433',
+      strokeColor: '#ef4444',
+      strokeWidth: 3,
       strokeStyle: 'dash'
     });
     realtimeMap.geoObjects.add(territoryLayer);
