@@ -1417,7 +1417,7 @@ select.filter-input {
     padding: 3px 10px;
     font-size: 0.7rem;
     font-weight: 800;
-    color: var(--primary);
+    color: #ffffff;
     z-index: 2;
     margin: 0 -35px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
