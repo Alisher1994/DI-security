@@ -64,6 +64,8 @@ async function initializeApp() {
       copyrightEl.textContent = `Приложение разработано YTT "MUSAYEV ALISHER" ${yearStr}`;
     }
 
+    initializeKPIFilters();
+
     // Load initial page
     loadDashboard();
   } catch (error) {
@@ -170,6 +172,9 @@ function setupNavigation() {
         case 'employees':
           loadEmployees();
           break;
+        case 'kpi':
+          loadKPI();
+          break;
       }
     });
   });
@@ -206,6 +211,7 @@ function setupEventListeners() {
   });
   safeAddEventListener('clearScanFilter', 'click', clearScanFilter);
   safeAddEventListener('exportScansHeader', 'click', exportScansToCSV);
+  safeAddEventListener('apply-kpi-filter', 'click', loadKPI);
 
   // Excel import/export
   safeAddEventListener('exportEmployeesHeader', 'click', exportEmployeesToXLSX);
@@ -2665,4 +2671,129 @@ async function deleteTerritory() {
     console.error('Ошибка удаления территории:', error);
     showNotification('Не удалось удалить территорию', 'error');
   }
+}
+
+// KPI Logic
+function initializeKPIFilters() {
+  const yearSelect = document.getElementById('kpi-filter-year');
+  const monthSelect = document.getElementById('kpi-filter-month');
+
+  if (!yearSelect) return;
+
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+
+  // Populate years from 2024 to current
+  for (let y = 2024; y <= currentYear; y++) {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y;
+    if (y === currentYear) opt.selected = true;
+    yearSelect.appendChild(opt);
+  }
+
+  // Set current month
+  monthSelect.value = currentMonth;
+}
+
+async function loadKPI() {
+  const yearSelect = document.getElementById('kpi-filter-year');
+  const monthSelect = document.getElementById('kpi-filter-month');
+
+  if (!yearSelect || !monthSelect) return;
+
+  const year = yearSelect.value;
+  const month = parseInt(monthSelect.value);
+
+  // Create date range for the selected month in local timezone
+  const fromDate = new Date(year, month, 1);
+  const toDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+  // Format dates for API (ISO strings)
+  const fromStr = fromDate.toISOString();
+  const toStr = toDate.toISOString();
+
+  try {
+    showNotification('Загрузка данных KPI...', 'info');
+
+    // We fetch ALL scans for the month. 
+    // Optimization note: This might need a specialized backend endpoint for scale.
+    const scansData = await apiRequest(`/scans?from_date=${fromStr}&to_date=${toStr}&limit=5000`);
+
+    // Group scans by user
+    const stats = {};
+    scansData.scans.forEach(scan => {
+      if (!stats[scan.user_id]) {
+        stats[scan.user_id] = {
+          name: scan.user_name || `ID: ${scan.user_id}`,
+          totalScans: 0,
+          uniquePoints: new Set(),
+          validScans: 0
+        };
+      }
+      stats[scan.user_id].totalScans++;
+      stats[scan.user_id].uniquePoints.add(scan.checkpoint_id);
+      if (scan.is_valid) stats[scan.user_id].validScans++;
+    });
+
+    // Convert to array and sort by totalScans desc
+    const leaderboard = Object.values(stats).sort((a, b) => b.totalScans - a.totalScans);
+
+    renderKPI(leaderboard, fromDate, toDate);
+  } catch (error) {
+    console.error('Failed to load KPI:', error);
+    showNotification('Ошибка загрузки данных KPI', 'error');
+  }
+}
+
+function renderKPI(data, fromDate, toDate) {
+  const tbody = document.getElementById('kpiTableBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-muted);">Нет данных за этот период</td></tr>';
+    return;
+  }
+
+  // Calculate days in the selected month up to today if current month
+  const today = new Date();
+  let endDate = toDate;
+  if (toDate > today) endDate = today;
+
+  const diffTime = Math.abs(endDate - fromDate);
+  let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) diffDays = 1;
+
+  data.forEach((item, index) => {
+    const avgPerDay = (item.totalScans / diffDays).toFixed(1);
+    const tr = document.createElement('tr');
+
+    // Highlight top 3
+    let placeClass = '';
+    let placeEmoji = index + 1;
+    if (index === 0) { placeClass = 'place-first'; placeEmoji = '🥇'; }
+    else if (index === 1) { placeClass = 'place-second'; placeEmoji = '🥈'; }
+    else if (index === 2) { placeClass = 'place-third'; placeEmoji = '🥉'; }
+
+    tr.innerHTML = `
+      <td style="text-align: center; font-weight: bold; font-size: 1.1rem;">${placeEmoji}</td>
+      <td>
+        <div style="font-weight: 600; color: var(--text-primary);">${item.name}</div>
+      </td>
+      <td style="text-align: center;">
+        <span class="badge badge-success" style="padding: 0.5rem 1rem; font-size: 1rem; border-radius: 20px;">${item.totalScans}</span>
+      </td>
+      <td style="text-align: center;">
+        <span class="badge badge-info" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9; border: 1px solid rgba(14, 165, 233, 0.2);">${item.uniquePoints.size}</span>
+      </td>
+      <td style="text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+        ~${avgPerDay} / день
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  showNotification('KPI обновлен', 'success');
 }

@@ -93,6 +93,17 @@
                     </span>
                     <span class="nav-text">Сотрудники</span>
                 </a>
+                <a href="#kpi" class="nav-item" data-page="kpi">
+                    <span class="nav-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-trending-up">
+                            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+                            <polyline points="16 7 22 7 22 13" />
+                        </svg>
+                    </span>
+                    <span class="nav-text">KPI</span>
+                </a>
 
             </nav>
 
@@ -202,6 +213,17 @@
                     </svg>
                 </span>
                 <span class="nav-text">Люди</span>
+            </a>
+            <a href="#kpi" class="mobile-nav-item nav-item" data-page="kpi">
+                <span class="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-trending-up">
+                        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+                        <polyline points="16 7 22 7 22 13" />
+                    </svg>
+                </span>
+                <span class="nav-text">KPI</span>
             </a>
         </nav>
 
@@ -484,6 +506,55 @@
                 </div>
                 <div id="employeesPagination" class="pagination-container"></div>
             </div>
+
+            <!-- KPI Page -->
+            <div id="kpi-page" class="page-content">
+                <div class="filters" style="display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+                    <div class="filter-group">
+                        <label
+                            style="display: block; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">Год</label>
+                        <select id="kpi-filter-year" class="input-field" style="width: 120px;"></select>
+                    </div>
+                    <div class="filter-group">
+                        <label
+                            style="display: block; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">Месяц</label>
+                        <select id="kpi-filter-month" class="input-field" style="width: 150px;">
+                            <option value="0">Январь</option>
+                            <option value="1">Февраль</option>
+                            <option value="2">Март</option>
+                            <option value="3">Апрель</option>
+                            <option value="4">Май</option>
+                            <option value="5">Июнь</option>
+                            <option value="6">Июль</option>
+                            <option value="7">Август</option>
+                            <option value="8">Сентябрь</option>
+                            <option value="9">Октябрь</option>
+                            <option value="10">Ноябрь</option>
+                            <option value="11">Декабрь</option>
+                        </select>
+                    </div>
+                    <div class="filter-group" style="display: flex; align-items: flex-end;">
+                        <button id="apply-kpi-filter" class="btn btn-primary">Показать результаты</button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">Место</th>
+                                <th>Сотрудник</th>
+                                <th style="text-align: center;">Всего сканирований</th>
+                                <th style="text-align: center;">Уникальных точек</th>
+                                <th style="text-align: center;">Среднее в день</th>
+                            </tr>
+                        </thead>
+                        <tbody id="kpiTableBody">
+                            <!-- Rows will be dynamic -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -566,7 +637,7 @@
         </div>
     </div>
 
-    <script src="/js/admin-app.js?v=3.5"></script>
+    <script src="/js/admin-app.js?v=3.6"></script>
 </body>
 
 </html>
