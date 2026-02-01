@@ -95,6 +95,14 @@ body {
 
 .nav-icon {
     font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-icon svg {
+    width: 20px;
+    height: 20px;
 }
 
 .sidebar-footer {
@@ -349,6 +357,11 @@ body {
     font-size: 1.25rem;
 }
 
+.btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.75rem;
+}
+
 .btn-warning {
     background: linear-gradient(135deg, var(--warning), #d97706);
     color: white;
@@ -496,7 +509,8 @@ body {
 .map-controls {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 1rem;
     margin-bottom: 1rem;
     padding: 1rem;
     background: var(--bg-secondary);
@@ -988,4 +1002,18 @@ input:checked+.slider:before {
 
 select.filter-input {
     cursor: pointer;
+}
+
+.preset-filters {
+    display: flex;
+    gap: 0.5rem;
+    margin-right: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .preset-filters {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 0.5rem;
+    }
 }

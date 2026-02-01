@@ -113,8 +113,8 @@ function setupNavigation() {
 
       // Update page title
       const titles = {
-        'dashboard': 'Дашборд',
-        'realtime': 'Карта Realtime',
+        'dashboard': 'Аналитика',
+        'realtime': 'Карта',
         'scans': 'История',
         'checkpoints': 'Контрольные точки',
         'employees': 'Сотрудники'
@@ -1350,7 +1350,7 @@ function renderEmployeesTable(employees) {
   if (employees.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+        <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
           <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
           <div>Нет сотрудников</div>
         </td>
@@ -1363,6 +1363,7 @@ function renderEmployeesTable(employees) {
     <tr>
       <td>${emp.id}</td>
       <td>${emp.full_name}</td>
+      <td>${formatDateTime(emp.created_at)}</td>
       <td>${emp.phone || '-'}</td>
       <td>
         <span class="badge ${emp.role === 'admin' ? 'badge-danger' : 'badge-success'}">
@@ -1857,6 +1858,34 @@ function showNotification(message, type = 'info') {
     notification.style.animation = 'slideOut 0.3s ease-out';
     setTimeout(() => notification.remove(), 300);
   }, 3000);
+}
+
+function setScanDatePreset(preset) {
+  const fromInput = document.getElementById('scanFilterFrom');
+  const toInput = document.getElementById('scanFilterTo');
+
+  const today = new Date();
+  let fromDate = new Date();
+  let toDate = new Date();
+
+  if (preset === 'today') {
+    // Already set to today
+  } else if (preset === 'yesterday') {
+    fromDate.setDate(today.getDate() - 1);
+    toDate.setDate(today.getDate() - 1);
+  } else if (preset === 'beforeYesterday') {
+    fromDate.setDate(today.getDate() - 2);
+    toDate.setDate(today.getDate() - 2);
+  }
+
+  const offset = fromDate.getTimezoneOffset();
+  fromDate = new Date(fromDate.getTime() - (offset * 60 * 1000));
+  toDate = new Date(toDate.getTime() - (offset * 60 * 1000));
+
+  fromInput.value = fromDate.toISOString().split('T')[0];
+  toInput.value = toDate.toISOString().split('T')[0];
+
+  loadScans();
 }
 
 // Utilities
