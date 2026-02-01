@@ -1000,14 +1000,29 @@ function renderTimeline(scans) {
     return;
   }
 
-  container.innerHTML = scans.map((scan, index) => `
-    <div class="timeline-item">
-      <div class="timeline-number">${index + 1}</div>
-      <div class="timeline-checkpoint" title="${scan.checkpoint_name}">${scan.checkpoint_name}</div>
-      <div class="timeline-dot"></div>
-      <div class="timeline-time">${new Date(scan.scan_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
-    </div>
-  `).join('');
+  let html = '';
+  scans.forEach((scan, index) => {
+    // Add duration label if not the first item
+    if (index > 0) {
+      const prevTime = new Date(scans[index - 1].scan_time);
+      const currTime = new Date(scan.scan_time);
+      const diffMs = currTime - prevTime;
+      const diffMin = Math.round(diffMs / 60000);
+
+      html += `<div class="timeline-duration" title="Промежуток времени">${diffMin} мин</div>`;
+    }
+
+    html += `
+      <div class="timeline-item">
+        <div class="timeline-number">${index + 1}</div>
+        <div class="timeline-checkpoint" title="${scan.checkpoint_name}">${scan.checkpoint_name}</div>
+        <div class="timeline-dot"></div>
+        <div class="timeline-time">${new Date(scan.scan_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
 }
 
 function initTimelineMap(scans) {

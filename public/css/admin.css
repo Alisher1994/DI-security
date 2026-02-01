@@ -1408,3 +1408,18 @@ select.filter-input {
     right: -5px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
+
+.timeline-duration {
+    flex: 0 0 auto;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--primary);
+    z-index: 2;
+    margin: 0 -35px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    white-space: nowrap;
+}
