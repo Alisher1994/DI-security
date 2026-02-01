@@ -278,12 +278,12 @@
                 <div class="table-controls">
                     <div class="filters">
                         <div class="preset-filters">
-                            <button onclick="setScanDatePreset('today')"
-                                class="btn btn-secondary btn-sm">Сегодня</button>
-                            <button onclick="setScanDatePreset('yesterday')"
-                                class="btn btn-secondary btn-sm">Вчера</button>
-                            <button onclick="setScanDatePreset('beforeYesterday')"
-                                class="btn btn-secondary btn-sm">Позавчера</button>
+                            <select id="scanDatePreset" class="input-field" onchange="setScanDatePreset(this.value)">
+                                <option value="">Период...</option>
+                                <option value="today">Сегодня</option>
+                                <option value="yesterday">Вчера</option>
+                                <option value="beforeYesterday">Позавчера</option>
+                            </select>
                         </div>
                         <input type="date" id="scanFilterFrom" class="input-field" placeholder="От">
                         <input type="date" id="scanFilterTo" class="input-field" placeholder="До">

@@ -205,9 +205,16 @@ body {
 }
 
 .tab-actions .btn {
-    padding: 0.4rem 0.8rem;
+    padding: 0.3rem 0.75rem;
     font-size: 0.75rem;
-    min-height: 32px;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.tab-actions .btn .btn-icon {
+    font-size: 0.9rem;
 }
 
 .datetime {
@@ -1145,6 +1152,17 @@ select.filter-input {
     display: flex;
     gap: 0.5rem;
     margin-right: 0.5rem;
+}
+
+.preset-filters select.input-field {
+    min-width: 130px;
+    height: 36px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    padding: 0 10px;
+    cursor: pointer;
 }
 
 @media (max-width: 768px) {
