@@ -372,18 +372,26 @@
             <div id="realtime-page" class="page-content">
                 <div class="map-header">
                     <div class="map-legend">
-                        <div class="legend-item">
-                            <span class="legend-icon" style="font-size: 1.2rem; margin-right: 0.5rem;">👮</span>
+                        <label class="legend-item cursor-pointer">
+                            <input type="checkbox" id="toggle-employees" checked>
+                            <span class="legend-icon" style="font-size: 1.2rem;">👮</span>
                             <span>Сотрудники (online)</span>
-                        </div>
-                        <div class="legend-item">
+                        </label>
+                        <label class="legend-item cursor-pointer">
+                            <input type="checkbox" id="toggle-posts" checked>
                             <span class="legend-marker" style="background: #ef4444;"></span>
                             <span>КПП</span>
-                        </div>
-                        <div class="legend-item">
+                        </label>
+                        <label class="legend-item cursor-pointer">
+                            <input type="checkbox" id="toggle-points" checked>
                             <span class="legend-marker" style="background: #10b981;"></span>
                             <span>Точки патруля</span>
-                        </div>
+                        </label>
+                        <label class="legend-item cursor-pointer">
+                            <input type="checkbox" id="toggle-names" checked>
+                            <span class="legend-icon" style="font-size: 1.2rem;">🏷️</span>
+                            <span>Названия точек</span>
+                        </label>
                     </div>
                 </div>
                 <div id="realtime-map" class="admin-map"></div>

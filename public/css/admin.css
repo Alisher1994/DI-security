@@ -556,6 +556,28 @@ body {
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem;
+    background: var(--bg-tertiary);
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.legend-item:hover {
+    background: var(--bg-secondary);
+    border-color: var(--primary);
+}
+
+.legend-item input[type="checkbox"] {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--success);
+}
+
+.cursor-pointer {
+    cursor: pointer;
 }
 
 .legend-marker {

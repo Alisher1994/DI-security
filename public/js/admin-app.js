@@ -17,6 +17,12 @@ let employeeItemsPerPage = 10;
 let selectedEmployeeIds = [];
 let isTerritoryModalOpen = false;
 let recentScansLimit = 10;
+let mapVisibility = {
+  employees: true,
+  posts: true,
+  points: true,
+  names: true
+};
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -212,6 +218,17 @@ function setupEventListeners() {
   safeAddEventListener('clearScanFilter', 'click', clearScanFilter);
   safeAddEventListener('exportScansHeader', 'click', exportScansToCSV);
   safeAddEventListener('apply-kpi-filter', 'click', loadKPI);
+
+  // Map Legend Toggles
+  ['employees', 'posts', 'points', 'names'].forEach(key => {
+    safeAddEventListener(`toggle-${key}`, 'change', (e) => {
+      mapVisibility[key] = e.target.checked;
+      const activePage = document.querySelector('.nav-item.active')?.dataset.page;
+      if (activePage === 'realtime') {
+        loadRealtimeMap();
+      }
+    });
+  });
 
   // Excel import/export
   safeAddEventListener('exportEmployeesHeader', 'click', exportEmployeesToXLSX);
@@ -679,18 +696,26 @@ function renderRealtimeMap(checkpoints, patrols) {
 
     // Добавляем контрольные точки
     checkpoints.forEach(cp => {
+      // Filter by visibility settings
+      if (cp.checkpoint_type === 'kpp' && !mapVisibility.posts) return;
+      if (cp.checkpoint_type !== 'kpp' && !mapVisibility.points) return;
+
+      const showName = mapVisibility.names;
+
       const icon = L.divIcon({
         className: 'custom-div-icon',
         html: `
-          <div style="display: flex; flex-direction: column; align-items: center;">
+          <div style="display: flex; flex-direction: column; align-items: center; position: relative;">
+            ${showName ? `
+              <div style="margin-bottom: 4px; background: rgba(255,255,255,0.95); color: #1e293b; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; border: 1px solid #cbd5e1; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                ${cp.name}
+              </div>
+            ` : ''}
             <div style="width: 14px; height: 14px; background: ${cp.checkpoint_type === 'kpp' ? '#ef4444' : '#10b981'}; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 2px ${cp.checkpoint_type === 'kpp' ? '#ef444440' : '#10b98140'};"></div>
-            <div style="margin-top: 4px; background: rgba(255,255,255,0.95); color: #1e293b; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; border: 1px solid #cbd5e1; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              ${cp.name}
-            </div>
           </div>
         `,
-        iconSize: [40, 60],
-        iconAnchor: [20, 30]
+        iconSize: [40, 40],
+        iconAnchor: [20, showName ? 33 : 7] // Center of the dot
       });
 
       const marker = L.marker([cp.latitude, cp.longitude], { icon }).addTo(realtimeMap);
@@ -745,11 +770,12 @@ function renderRealtimeMap(checkpoints, patrols) {
     });
 
     // Добавляем активных патрулей
-    patrols.forEach(patrol => {
-      if (patrol.latitude && patrol.longitude) {
-        const icon = L.divIcon({
-          className: 'custom-div-icon',
-          html: `
+    if (mapVisibility.employees) {
+      patrols.forEach(patrol => {
+        if (patrol.latitude && patrol.longitude) {
+          const icon = L.divIcon({
+            className: 'custom-div-icon',
+            html: `
             <div style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
               <div style="font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">👮</div>
               <div style="background: rgba(15, 23, 42, 0.95); color: white; padding: 4px 10px; border-radius: 8px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; min-width: 100px;">
@@ -759,23 +785,24 @@ function renderRealtimeMap(checkpoints, patrols) {
               </div>
             </div>
           `,
-          iconSize: [120, 80],
-          iconAnchor: [60, 40]
-        });
+            iconSize: [120, 80],
+            iconAnchor: [60, 40]
+          });
 
-        const marker = L.marker([patrol.latitude, patrol.longitude], { icon }).addTo(realtimeMap);
+          const marker = L.marker([patrol.latitude, patrol.longitude], { icon }).addTo(realtimeMap);
 
-        marker.bindPopup(`
+          marker.bindPopup(`
           <strong>${patrol.full_name}</strong><br>
           <small>Последнее обновление: ${formatDateTime(patrol.recorded_at)}</small><br>
           <small>Точность: ${Math.round(patrol.accuracy)}м</small>
         `);
 
-        mapMarkers.push(marker);
-      }
-    });
+          mapMarkers.push(marker);
+        }
+      });
 
-    return;
+      return;
+    }
   }
 
   // Yandex Maps рендеринг
@@ -783,8 +810,12 @@ function renderRealtimeMap(checkpoints, patrols) {
 
   // Add checkpoints
   checkpoints.forEach(cp => {
+    // Filter by visibility settings
+    if (cp.checkpoint_type === 'kpp' && !mapVisibility.posts) return;
+    if (cp.checkpoint_type !== 'kpp' && !mapVisibility.points) return;
+
     const marker = new ymaps.Placemark([cp.latitude, cp.longitude], {
-      iconCaption: cp.name,
+      iconCaption: mapVisibility.names ? cp.name : '',
       balloonContent: `
         <div style="min-width: 220px; padding: 5px; color: #1e293b;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
@@ -838,22 +869,23 @@ function renderRealtimeMap(checkpoints, patrols) {
   });
 
   // Add active patrols
-  patrols.forEach(patrol => {
-    if (patrol.latitude && patrol.longitude) {
-      const marker = new ymaps.Placemark([patrol.latitude, patrol.longitude], {
-        hintContent: patrol.full_name,
-        balloonContent: `
+  if (mapVisibility.employees) {
+    patrols.forEach(patrol => {
+      if (patrol.latitude && patrol.longitude) {
+        const marker = new ymaps.Placemark([patrol.latitude, patrol.longitude], {
+          hintContent: patrol.full_name,
+          balloonContent: `
           <strong>${patrol.full_name}</strong><br>
           <small>Последнее обновление: ${formatDateTime(patrol.recorded_at)}</small><br>
           <small>Точность: ${Math.round(patrol.accuracy)}м</small>
         `
-      }, {
-        iconLayout: 'default#imageWithContent',
-        iconImageHref: '',
-        iconImageSize: [52, 52],
-        iconImageOffset: [-26, -45],
-        iconContentLayout: ymaps.templateLayoutFactory.createClass(
-          `<div style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
+        }, {
+          iconLayout: 'default#imageWithContent',
+          iconImageHref: '',
+          iconImageSize: [52, 52],
+          iconImageOffset: [-26, -45],
+          iconContentLayout: ymaps.templateLayoutFactory.createClass(
+            `<div style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
             <div style="font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">👮</div>
             <div style="background: rgba(15, 23, 42, 0.95); color: white; padding: 4px 10px; border-radius: 8px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; min-width: 100px;">
                 <div style="font-weight: 800; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.2); margin-bottom: 4px; padding-bottom: 2px;">${patrol.full_name}</div>
@@ -861,12 +893,13 @@ function renderRealtimeMap(checkpoints, patrols) {
                 <div style="opacity: 0.7; font-size: 9px; margin-top: 2px;">${new Date(patrol.recorded_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
            </div>`
-        )
-      });
+          )
+        });
 
-      realtimeMap.geoObjects.add(marker);
-    }
-  });
+        realtimeMap.geoObjects.add(marker);
+      }
+    });
+  }
 }
 
 function renderActivePatrolsList(patrols) {
