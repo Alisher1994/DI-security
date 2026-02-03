@@ -220,9 +220,9 @@ router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res
         g.latitude, g.longitude, g.accuracy, g.speed, g.recorded_at,
         s.shift_date, s.shift_start, s.shift_end
       FROM users u
-      INNER JOIN patrol_sessions ps ON u.id = ps.user_id AND ps.is_active = true
+      INNER JOIN patrol_sessions ps ON u.id = ps.user_id AND ps.is_active = true AND ps.session_start >= CURRENT_DATE
       LEFT JOIN shifts s ON ps.shift_id = s.id
-      LEFT JOIN gps_tracks g ON u.id = g.user_id
+      LEFT JOIN gps_tracks g ON u.id = g.user_id AND g.recorded_at >= ps.session_start
       ORDER BY u.id, g.recorded_at DESC NULLS LAST
     `);
 
