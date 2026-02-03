@@ -217,6 +217,7 @@ function setupEventListeners() {
   });
   safeAddEventListener('clearScanFilter', 'click', clearScanFilter);
   safeAddEventListener('exportScansHeader', 'click', exportScansToCSV);
+  safeAddEventListener('exportScansSummaryBtn', 'click', exportScansSummaryReport);
   safeAddEventListener('apply-kpi-filter', 'click', loadKPI);
 
   // Map Legend Toggles
@@ -1255,6 +1256,90 @@ async function exportScansToCSV() {
   } catch (error) {
     console.error('Export failed:', error);
     showNotification('Ошибка экспорта', 'error');
+  }
+}
+
+async function exportScansSummaryReport() {
+  try {
+    showNotification('Подготовка отчёта...', 'info');
+
+    const fromDateInput = document.getElementById('scanFilterFrom').value;
+    const toDateInput = document.getElementById('scanFilterTo').value;
+
+    // Если даты не выбраны, используем сегодня
+    const today = new Date().toISOString().split('T')[0];
+    const fromDate = fromDateInput || today;
+    const toDate = toDateInput || today;
+
+    // Загружаем сканирования за период
+    let endpoint = `/scans?limit=10000&from_date=${fromDate}T00:00:00&to_date=${toDate}T23:59:59`;
+    const scansData = await apiRequest(endpoint);
+    const scans = scansData.scans;
+
+    if (scans.length === 0) {
+      showNotification('Нет данных за выбранный период', 'warning');
+      return;
+    }
+
+    // Загружаем список всех сотрудников для ролей
+    const empData = await apiRequest('/employees');
+    const employees = empData.employees || [];
+    const empMap = employees.reduce((acc, emp) => {
+      acc[emp.id] = emp;
+      return acc;
+    }, {});
+
+    // Группируем сканирования по пользователю
+    const stats = scans.reduce((acc, scan) => {
+      const uid = scan.user_id;
+      if (!acc[uid]) {
+        const emp = empMap[uid] || {};
+        acc[uid] = {
+          name: scan.user_name || emp.full_name || `ID: ${uid}`,
+          role: emp.role ? getRoleLabel(emp.role) : '-',
+          count: 0
+        };
+      }
+      acc[uid].count++;
+      return acc;
+    }, {});
+
+    // Заголовки: №, Дата начало, Дата окончания, ФИО, Должность, Отсканировано (суммарное кол-во)
+    const headers = ['№', 'Дата начала', 'Дата окончания', 'ФИО', 'Должность', 'Отсканировано (суммарно)'];
+
+    // Сортируем по количеству (по убыванию)
+    const sortedStats = Object.values(stats).sort((a, b) => b.count - a.count);
+
+    const displayFrom = formatDate(fromDate);
+    const displayTo = formatDate(toDate);
+
+    const rows = sortedStats.map((item, index) => [
+      index + 1,
+      displayFrom,
+      displayTo,
+      item.name,
+      item.role,
+      item.count
+    ]);
+
+    const csvContent = "\uFEFF" + [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `report_summary_${fromDate}_to_${toDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showNotification('Отчёт сформирован и скачан', 'success');
+  } catch (error) {
+    console.error('Report failed:', error);
+    showNotification('Ошибка формирования отчёта', 'error');
   }
 }
 
