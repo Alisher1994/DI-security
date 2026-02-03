@@ -1313,30 +1313,34 @@ async function exportScansSummaryReport() {
     const displayFrom = formatDate(fromDate);
     const displayTo = formatDate(toDate);
 
-    const rows = sortedStats.map((item, index) => [
-      index + 1,
-      displayFrom,
-      displayTo,
-      item.name,
-      item.role,
-      item.count
-    ]);
+    const rows = sortedStats.map((item, index) => ({
+      '№': index + 1,
+      'Дата начала': displayFrom,
+      'Дата окончания': displayTo,
+      'ФИО': item.name,
+      'Должность': item.role,
+      'Отсканировано (суммарно)': item.count
+    }));
 
-    const csvContent = "\uFEFF" + [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
+    // Создание книги Excel с помощью SheetJS
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Отчёт по считываниям');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `report_summary_${fromDate}_to_${toDate}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Настройка ширины колонок
+    worksheet['!cols'] = [
+      { wch: 5 },  // №
+      { wch: 15 }, // Дата начала
+      { wch: 15 }, // Дата окончания
+      { wch: 35 }, // ФИО
+      { wch: 20 }, // Должность
+      { wch: 25 }  // Отсканировано
+    ];
 
-    showNotification('Отчёт сформирован и скачан', 'success');
+    // Скачивание файла
+    XLSX.writeFile(workbook, `report_summary_${fromDate}_to_${toDate}.xlsx`);
+
+    showNotification('Отчёт сформирован и скачан (XLSX)', 'success');
   } catch (error) {
     console.error('Report failed:', error);
     showNotification('Ошибка формирования отчёта', 'error');
