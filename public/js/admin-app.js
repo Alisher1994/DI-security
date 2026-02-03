@@ -146,8 +146,22 @@ function initializeMapTimeFilter() {
   if (savedValue && options.includes(savedValue)) {
     select.value = savedValue;
   } else {
-    // По умолчанию - начало смены (первый элемент)
-    select.value = startDate.toISOString();
+    // По умолчанию - текущий момент минус 1 час (если такая опция есть)
+    const oneHourAgo = new Date(now);
+    oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+
+    // Ищем ближайшую опцию к "час назад"
+    let defaultOption = select.options[0]?.value; // Если ничего не найдем, берем первую
+
+    for (let i = select.options.length - 1; i >= 0; i--) {
+      const optDate = new Date(select.options[i].value);
+      if (optDate <= oneHourAgo) {
+        defaultOption = select.options[i].value;
+        break;
+      }
+    }
+
+    select.value = defaultOption;
   }
 
   if (!select.dataset.listenerAdded) {
