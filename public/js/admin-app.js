@@ -19,6 +19,7 @@ let isTerritoryModalOpen = false;
 let recentScansLimit = 10;
 let mapVisibility = {
   employees: true,
+  empInfo: true,
   posts: true,
   points: true,
   names: true
@@ -221,9 +222,10 @@ function setupEventListeners() {
   safeAddEventListener('apply-kpi-filter', 'click', loadKPI);
 
   // Map Legend Toggles
-  ['employees', 'posts', 'points', 'names'].forEach(key => {
+  ['employees', 'emp-info', 'posts', 'points', 'names'].forEach(key => {
     safeAddEventListener(`toggle-${key}`, 'change', (e) => {
-      mapVisibility[key] = e.target.checked;
+      const stateKey = key === 'emp-info' ? 'empInfo' : key;
+      mapVisibility[stateKey] = e.target.checked;
       const activePage = document.querySelector('.nav-item.active')?.dataset.page;
       if (activePage === 'realtime') {
         loadRealtimeMap();
@@ -774,16 +776,21 @@ function renderRealtimeMap(checkpoints, patrols) {
     if (mapVisibility.employees) {
       patrols.forEach(patrol => {
         if (patrol.latitude && patrol.longitude) {
+          const nameParts = patrol.full_name ? patrol.full_name.split(' ') : [];
+          const displayName = nameParts.length >= 2 ? `${nameParts[0]} ${nameParts[1]}` : patrol.full_name;
+
           const icon = L.divIcon({
             className: 'custom-div-icon',
             html: `
             <div style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
               <div style="font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">👮</div>
-              <div style="background: rgba(15, 23, 42, 0.95); color: white; padding: 4px 10px; border-radius: 8px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; min-width: 100px;">
-                <div style="font-weight: 800; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.2); margin-bottom: 4px; padding-bottom: 2px;">${patrol.full_name}</div>
-                <div style="opacity: 0.9; font-weight: 600; color: #10b981; font-size: 9px;">● Онлайн</div>
-                <div style="opacity: 0.7; font-size: 9px; margin-top: 2px;">Обновлено: ${new Date(patrol.recorded_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
-              </div>
+              ${mapVisibility.empInfo ? `
+                <div style="background: rgba(15, 23, 42, 0.95); color: white; padding: 4px 10px; border-radius: 8px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; min-width: 100px;">
+                  <div style="font-weight: 800; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.2); margin-bottom: 4px; padding-bottom: 2px;">${displayName}</div>
+                  <div style="opacity: 0.9; font-weight: 600; color: #10b981; font-size: 9px;">● Онлайн</div>
+                  <div style="opacity: 0.7; font-size: 9px; margin-top: 2px;">Обновлено: ${new Date(patrol.recorded_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
+                </div>
+              ` : ''}
             </div>
           `,
             iconSize: [120, 80],
@@ -873,6 +880,9 @@ function renderRealtimeMap(checkpoints, patrols) {
   if (mapVisibility.employees) {
     patrols.forEach(patrol => {
       if (patrol.latitude && patrol.longitude) {
+        const nameParts = patrol.full_name ? patrol.full_name.split(' ') : [];
+        const displayName = nameParts.length >= 2 ? `${nameParts[0]} ${nameParts[1]}` : patrol.full_name;
+
         const marker = new ymaps.Placemark([patrol.latitude, patrol.longitude], {
           hintContent: patrol.full_name,
           balloonContent: `
@@ -888,11 +898,13 @@ function renderRealtimeMap(checkpoints, patrols) {
           iconContentLayout: ymaps.templateLayoutFactory.createClass(
             `<div style="display: flex; flex-direction: column; align-items: center; cursor: pointer;">
             <div style="font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">👮</div>
-            <div style="background: rgba(15, 23, 42, 0.95); color: white; padding: 4px 10px; border-radius: 8px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; min-width: 100px;">
-                <div style="font-weight: 800; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.2); margin-bottom: 4px; padding-bottom: 2px;">${patrol.full_name}</div>
-                <div style="opacity: 0.9; font-weight: 600; color: #10b981; font-size: 9px;">● Онлайн</div>
-                <div style="opacity: 0.7; font-size: 9px; margin-top: 2px;">${new Date(patrol.recorded_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
-            </div>
+            ${mapVisibility.empInfo ? `
+              <div style="background: rgba(15, 23, 42, 0.95); color: white; padding: 4px 10px; border-radius: 8px; font-size: 10px; border: 1px solid rgba(255,255,255,0.2); white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; min-width: 100px;">
+                  <div style="font-weight: 800; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.2); margin-bottom: 4px; padding-bottom: 2px;">${displayName}</div>
+                  <div style="opacity: 0.9; font-weight: 600; color: #10b981; font-size: 9px;">● Онлайн</div>
+                  <div style="opacity: 0.7; font-size: 9px; margin-top: 2px;">${new Date(patrol.recorded_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
+              </div>
+            ` : ''}
            </div>`
           )
         });
