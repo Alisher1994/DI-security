@@ -19,10 +19,10 @@ let isTerritoryModalOpen = false;
 let recentScansLimit = 10;
 let mapVisibility = {
   employees: true,
-  empInfo: true,
+  empInfo: false,
   posts: true,
   points: true,
-  names: true
+  names: false
 };
 
 // Initialize
