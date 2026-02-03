@@ -72,6 +72,7 @@ async function initializeApp() {
     }
 
     initializeKPIFilters();
+    initializeMapTimeFilter();
 
     // Load initial page
     loadDashboard();
@@ -86,6 +87,51 @@ async function initializeApp() {
     } else {
       showNotification('Ошибка связи с сервером. Попробуйте обновить страницу.', 'error');
     }
+  }
+}
+
+function initializeMapTimeFilter() {
+  const select = document.getElementById('map-time-filter');
+  if (!select) return;
+
+  const savedValue = select.value;
+  const now = new Date();
+  const currentHour = now.getHours();
+
+  // Очищаем текущие опции
+  select.innerHTML = '';
+
+  for (let h = 0; h <= currentHour; h++) {
+    const hourStr = h.toString().padStart(2, '0') + ':00';
+    const option = document.createElement('option');
+    option.value = hourStr;
+
+    if (h === currentHour && now.getMinutes() > 0) {
+      option.textContent = 'Текущий час';
+    } else {
+      option.textContent = hourStr;
+    }
+
+    select.appendChild(option);
+  }
+
+  // Восстанавливаем значение если оно еще валидно, иначе дефолт 08:00
+  const options = Array.from(select.options).map(o => o.value);
+  if (savedValue && options.includes(savedValue)) {
+    select.value = savedValue;
+  } else {
+    if (currentHour >= 8) {
+      select.value = '08:00';
+    } else {
+      select.value = '00:00';
+    }
+  }
+
+  if (!select.dataset.listenerAdded) {
+    select.addEventListener('change', () => {
+      loadRealtimeMap();
+    });
+    select.dataset.listenerAdded = "true";
   }
 }
 
@@ -158,6 +204,7 @@ function setupNavigation() {
           loadDashboard();
           break;
         case 'realtime':
+          initializeMapTimeFilter();
           loadRealtimeMap();
           // Force map resize after transition
           setTimeout(() => {
@@ -515,13 +562,17 @@ async function loadMoreRecentScans() {
 async function loadRealtimeMap() {
   const refreshBtn = document.getElementById('refresh-map');
   const icon = refreshBtn?.querySelector('.btn-icon');
+  const timeFilter = document.getElementById('map-time-filter')?.value;
 
   if (icon) icon.classList.add('fa-spin-custom'); // Добавим анимацию если нужно
 
   try {
+    let activePatrolsUrl = '/gps/active';
+    if (timeFilter) activePatrolsUrl += `?from_time=${timeFilter}`;
+
     const [checkpoints, activePatrols] = await Promise.all([
       apiRequest('/checkpoints'),
-      apiRequest('/gps/active'),
+      apiRequest(activePatrolsUrl),
       loadTerritory() // Обновляем и территорию тоже
     ]);
 

@@ -213,7 +213,8 @@ router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res
             polygon = []; // Продолжаем работу без фильтрации, если БД недоступна
         }
 
-        const result = await pool.query(`
+        const { from_time } = req.query;
+        let query = `
       SELECT DISTINCT ON (u.id)
         u.id, u.full_name, u.role,
         ps.id as session_id, ps.session_start,
@@ -223,8 +224,17 @@ router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res
       INNER JOIN patrol_sessions ps ON u.id = ps.user_id AND ps.is_active = true AND ps.session_start >= CURRENT_DATE
       LEFT JOIN shifts s ON ps.shift_id = s.id
       LEFT JOIN gps_tracks g ON u.id = g.user_id AND g.recorded_at >= ps.session_start
-      ORDER BY u.id, g.recorded_at DESC NULLS LAST
-    `);
+      WHERE 1=1
+    `;
+        const values = [];
+        if (from_time) {
+            query += ` AND (g.recorded_at >= CURRENT_DATE + $1::time OR ps.session_start >= CURRENT_DATE + $1::time)`;
+            values.push(from_time);
+        }
+
+        query += ` ORDER BY u.id, g.recorded_at DESC NULLS LAST`;
+
+        const result = await pool.query(query, values);
 
         let activePatrols = result.rows;
 
