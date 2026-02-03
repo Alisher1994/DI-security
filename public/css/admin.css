@@ -1067,6 +1067,8 @@ input:checked+.slider:before {
     backdrop-filter: blur(4px);
     align-items: center;
     justify-content: center;
+    overflow-y: auto;
+    padding: 20px;
 }
 
 .modal.active,
@@ -1085,6 +1087,15 @@ input:checked+.slider:before {
     position: relative;
     box-shadow: var(--shadow-lg);
     animation: modalFadeIn 0.3s;
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
 }
 
 @keyframes modalFadeIn {
@@ -1112,9 +1123,7 @@ input:checked+.slider:before {
     font-size: 1.25rem;
 }
 
-.modal-body {
-    padding: 1.5rem;
-}
+
 
 .close-modal {
     background: var(--bg-tertiary);
