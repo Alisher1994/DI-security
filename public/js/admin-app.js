@@ -101,30 +101,53 @@ function initializeMapTimeFilter() {
   // Очищаем текущие опции
   select.innerHTML = '';
 
-  for (let h = 0; h <= currentHour; h++) {
-    const hourStr = h.toString().padStart(2, '0') + ':00';
-    const option = document.createElement('option');
-    option.value = hourStr;
+  let shiftStartHour = 8;
+  let shiftBaseDate = new Date(now);
 
-    if (h === currentHour && now.getMinutes() > 0) {
-      option.textContent = 'Текущий час';
-    } else {
-      option.textContent = hourStr;
+  if (currentHour >= 8 && currentHour < 20) {
+    // Дневная смена: 08:00 - 20:00
+    shiftStartHour = 8;
+  } else {
+    // Ночная смена: 20:00 - 08:00
+    shiftStartHour = 20;
+    if (currentHour < 8) {
+      // Если сейчас глубокая ночь (00-07), то начало смены было вчера в 20:00
+      shiftBaseDate.setDate(shiftBaseDate.getDate() - 1);
     }
-
-    select.appendChild(option);
   }
 
-  // Восстанавливаем значение если оно еще валидно, иначе дефолт 08:00
+  // Создаем точки от начала смены до текущего момента
+  const startDate = new Date(shiftBaseDate);
+  startDate.setHours(shiftStartHour, 0, 0, 0);
+
+  const tempDate = new Date(startDate);
+  while (tempDate <= now) {
+    const isToday = tempDate.getDate() === now.getDate();
+    const h = tempDate.getHours();
+
+    // ISO формат для значения (для API)
+    const val = tempDate.toISOString();
+
+    // Читаемый формат для текста
+    let label = tempDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    if (!isToday) label += ' (вчера)';
+    if (h === currentHour && isToday && now.getMinutes() > 0) label = 'Текущий час';
+
+    const option = document.createElement('option');
+    option.value = val;
+    option.textContent = label;
+    select.appendChild(option);
+
+    tempDate.setHours(tempDate.getHours() + 1);
+  }
+
+  // Восстанавливаем значение если оно еще валидно
   const options = Array.from(select.options).map(o => o.value);
   if (savedValue && options.includes(savedValue)) {
     select.value = savedValue;
   } else {
-    if (currentHour >= 8) {
-      select.value = '08:00';
-    } else {
-      select.value = '00:00';
-    }
+    // По умолчанию - начало смены (первый элемент)
+    select.value = startDate.toISOString();
   }
 
   if (!select.dataset.listenerAdded) {
@@ -568,7 +591,7 @@ async function loadRealtimeMap() {
 
   try {
     let activePatrolsUrl = '/gps/active';
-    if (timeFilter) activePatrolsUrl += `?from_time=${timeFilter}`;
+    if (timeFilter) activePatrolsUrl += `?from=${timeFilter}`;
 
     const [checkpoints, activePatrols] = await Promise.all([
       apiRequest('/checkpoints'),

@@ -213,7 +213,7 @@ router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res
             polygon = []; // Продолжаем работу без фильтрации, если БД недоступна
         }
 
-        const { from_time } = req.query;
+        const { from } = req.query;
         let query = `
       SELECT DISTINCT ON (u.id)
         u.id, u.full_name, u.role,
@@ -221,15 +221,19 @@ router.get('/active', authenticateToken, authorizeRole('admin'), async (req, res
         g.latitude, g.longitude, g.accuracy, g.speed, g.recorded_at,
         s.shift_date, s.shift_start, s.shift_end
       FROM users u
-      INNER JOIN patrol_sessions ps ON u.id = ps.user_id AND ps.is_active = true AND ps.session_start >= CURRENT_DATE
+      INNER JOIN patrol_sessions ps ON u.id = ps.user_id AND ps.is_active = true
       LEFT JOIN shifts s ON ps.shift_id = s.id
       LEFT JOIN gps_tracks g ON u.id = g.user_id AND g.recorded_at >= ps.session_start
       WHERE 1=1
     `;
         const values = [];
-        if (from_time) {
-            query += ` AND (g.recorded_at >= CURRENT_DATE + $1::time OR ps.session_start >= CURRENT_DATE + $1::time)`;
-            values.push(from_time);
+        if (from) {
+            // Если передан timestamp, фильтруем по нему
+            query += ` AND (g.recorded_at >= $1 OR ps.session_start >= $1)`;
+            values.push(from);
+        } else {
+            // По умолчанию только за сегодня (для обратной совместимости)
+            query += ` AND ps.session_start >= CURRENT_DATE`;
         }
 
         query += ` ORDER BY u.id, g.recorded_at DESC NULLS LAST`;
