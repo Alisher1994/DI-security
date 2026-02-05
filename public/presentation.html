@@ -1785,6 +1785,27 @@
                 cursor.style.left = e.clientX + 'px';
             });
 
+            // One Scroll = One Section Logic
+            let isThrottled = false;
+            window.addEventListener('wheel', (e) => {
+                e.preventDefault(); // Stop default scroll
+
+                if (isThrottled) return;
+                isThrottled = true;
+
+                if (e.deltaY > 0) {
+                    window.scrollToNextSection();
+                } else {
+                    window.scrollToPrevSection();
+                }
+
+                // Unlock after animation finishes (approx 1.2s)
+                setTimeout(() => {
+                    isThrottled = false;
+                }, 1200);
+
+            }, { passive: false });
+
 
             // --- Smooth Movement Animation ---
             function animate() {
