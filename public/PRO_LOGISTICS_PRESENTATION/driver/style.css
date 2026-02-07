@@ -1,0 +1,409 @@
+/* Driver App Styles (Dark Mode Base) */
+:root {
+    --color-yandex-yellow: #ff3b30;
+    --bg-dark: #21201f;
+    --bg-card: #2a2a2a;
+    --bg-surface: #3a3a3a;
+    --text-white: #ffffff;
+    --text-gray: #aaaaaa;
+
+    --font-family-base: 'Inter', sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family-base);
+    background-color: var(--bg-dark);
+    color: var(--text-white);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.full-height {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.driver-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: var(--bg-card);
+}
+
+.driver-stats {
+    display: flex;
+    gap: 10px;
+}
+
+.stat-badge {
+    background: var(--bg-surface);
+    padding: 4px 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.stat-value {
+    font-weight: bold;
+}
+
+.stat-badge.activity .stat-value {
+    color: #8bc34a;
+}
+
+.driver-profile-icon img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid #555;
+}
+
+/* Main Area */
+/* Main Area */
+.driver-main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    /* Use relative positioning for overlays */
+    position: relative;
+    background: var(--bg-dark);
+    overflow: hidden;
+}
+
+.relative {
+    position: relative;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.screen-view {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+/* Offline Screen Specifics */
+#offline-screen {
+    background: var(--bg-dark);
+    /* Solid bg covers map */
+    z-index: 20;
+}
+
+.status-circle {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    margin-bottom: 20px;
+    transition: 0.3s;
+}
+
+.status-circle.offline {
+    background: var(--bg-surface);
+    border: 4px solid #555;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.status-text {
+    margin-bottom: 30px;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.go-online-btn {
+    padding: 16px 40px;
+    border-radius: 30px;
+    font-size: 18px;
+    font-weight: bold;
+    background: var(--color-yandex-yellow);
+    color: #000;
+    min-width: 200px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255, 59, 48, 0.3);
+}
+
+.go-online-btn:active {
+    transform: scale(0.98);
+}
+
+/* Online Screen (Map) */
+.map-bg {
+    width: 100%;
+    height: 100%;
+    background: #e0e0e0;
+    position: relative;
+    /* Simulate map pattern */
+    background-image:
+        linear-gradient(#ccc 1px, transparent 1px),
+        linear-gradient(90deg, #ccc 1px, transparent 1px);
+    background-size: 40px 40px;
+}
+
+.vehicle-marker {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 40px;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+.floating-status {
+    position: absolute;
+    top: 20px;
+    background: #fff;
+    color: #333;
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pulse-indicator {
+    width: 10px;
+    height: 10px;
+    background: #ff3b30;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7);
+    }
+
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(255, 59, 48, 0);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 59, 48, 0);
+    }
+}
+
+.fab-menu {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #ff5252;
+    /* Red stop button */
+    color: #fff;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Order Offer Card */
+.order-offer-card {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    background: #2a2a2a;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    color: #fff;
+    animation: slideUp 0.3s ease-out;
+    border: 1px solid #444;
+    overflow: hidden;
+    /* Fixes loader crawl */
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.offer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #444;
+}
+
+.offer-type {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ff3b30;
+}
+
+.offer-price {
+    font-size: 20px;
+    font-weight: 900;
+}
+
+.offer-stats {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.stat-box {
+    background: #3a3a3a;
+    padding: 8px 12px;
+    border-radius: 8px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.offer-val {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.offer-lbl {
+    font-size: 12px;
+    color: #aaa;
+}
+
+.offer-address {
+    margin-bottom: 20px;
+}
+
+.address-label {
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 4px;
+}
+
+.address-text {
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.offer-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-skip {
+    flex: 1;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    background: #444;
+    color: #fff;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.btn-accept {
+    flex: 2;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    background: #ff3b30;
+    color: #000;
+    font-weight: 700;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.btn-accept:active {
+    transform: scale(0.98);
+}
+
+.offer-timer-bar {
+    position: absolute;
+    top: 0;
+    left: 20px;
+    right: 20px;
+    /* actually inset slightly or full width top border */
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #444;
+    border-radius: 20px 20px 0 0;
+    overflow: hidden;
+}
+
+.timer-progress {
+    height: 100%;
+    background: #ff3b30;
+    width: 100%;
+    animation: timeout 15s linear forwards;
+}
+
+@keyframes timeout {
+    to {
+        width: 0%;
+    }
+}
+
+/* Dashboard */
+.driver-dashboard {
+    background: var(--bg-card);
+    padding: 20px;
+    display: flex;
+    justify-content: space-around;
+    border-top: 1px solid #333;
+    padding-bottom: 40px;
+    /* Safe area */
+}
+
+.dash-item {
+    text-align: center;
+}
+
+.dash-label {
+    font-size: 12px;
+    color: var(--text-gray);
+    margin-bottom: 4px;
+}
+
+.dash-value {
+    font-size: 20px;
+    font-weight: bold;
+}

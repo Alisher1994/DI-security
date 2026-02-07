@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PRO LOGISTICS - Машинист</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="app" class="full-height">
+        <!-- Header -->
+        <div class="driver-header">
+            <div class="driver-stats">
+                <div class="stat-badge activity">
+                    <span class="stat-value" id="activity-val">95</span>
+                    <span class="stat-label">Активность</span>
+                </div>
+            </div>
+            <div style="font-weight:bold; font-size:14px; color:#ff3b30;" id="machine-name">
+                JCB 3CX Super
+            </div>
+            <div class="driver-profile-icon">
+                <img src="https://cdn-icons-png.flaticon.com/512/847/847969.png" alt="Profile">
+            </div>
+        </div>
+
+        <!-- Main Status Area -->
+        <div class="driver-main-area relative">
+
+            <!-- Offline Screen (Locked) -->
+            <div id="offline-screen" class="screen-view">
+                <div class="status-circle offline" id="status-circle">
+                    <div class="status-icon" id="status-icon">🛑</div>
+                </div>
+                <h2 class="status-text" id="status-text">Не на линии</h2>
+                <button class="go-online-btn" id="go-online-btn" onclick="toggleStatus()">На линию</button>
+            </div>
+
+            <!-- Online Screen (Map / Active) -->
+            <div id="online-screen" class="screen-view hidden">
+                <div id="map" style="width: 100%; height: 100%; z-index: 1;"></div>
+
+                <!-- Floating Status Float -->
+                <div class="floating-status" style="z-index: 2;">
+                    <div class="pulse-indicator"></div>
+                    <span>Поиск заказов...</span>
+                </div>
+
+                <!-- Go Offline FAB (Floating Action Button) or Menu -->
+                <button class="fab-menu" onclick="toggleStatus()" style="z-index: 2;">🛑</button>
+
+                <!-- Incoming Order Modal -->
+                <div id="order-offer" class="order-offer-card hidden" style="z-index: 100;">
+                    <div class="offer-header">
+                        <div class="offer-type">Заказ: Экскаватор</div>
+                        <div class="offer-price">350 000 сум/ч</div>
+                    </div>
+                    <div class="offer-stats">
+                        <div class="stat-box">
+                            <span class="offer-val">~2.5 км</span>
+                            <span class="offer-lbl">до подачи</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="offer-val">~10 мин</span>
+                            <span class="offer-lbl">ехать</span>
+                        </div>
+                    </div>
+                    <div class="offer-address">
+                        <div class="address-label">Куда:</div>
+                        <div class="address-text">Ташкент, ул. Амира Темура, 108</div>
+                    </div>
+                    <div class="offer-actions">
+                        <button class="btn-skip" onclick="skipOrder()">Пропустить</button>
+                        <button class="btn-accept" onclick="acceptOrder()">Принять</button>
+                    </div>
+                    <!-- Timer Bar -->
+                    <div class="offer-timer-bar">
+                        <div class="timer-progress"></div>
+                    </div>
+                </div>
+
+                <!-- Active Order / Navigation Panel -->
+                <div id="active-order-panel" class="order-offer-card hidden"
+                    style="z-index: 100; bottom: 0; left: 0; right: 0; border-radius: 20px 20px 0 0; border:none; border-top:1px solid #444;">
+                    <div class="offer-header">
+                        <div class="offer-type">В пути к клиенту</div>
+                        <div class="offer-price" id="nav-dist">2.5 км</div>
+                    </div>
+                    <div class="offer-address">
+                        <div class="address-label">Куда:</div>
+                        <div class="address-text">Ташкент, ул. Амира Темура, 108</div>
+                    </div>
+                    <div class="offer-actions">
+                        <button class="btn-primary"
+                            style="background:#4CAF50; color:#fff; width:100%; padding:16px; border-radius:12px; font-size:18px; font-weight:bold; border:none;"
+                            onclick="completeOrder()">
+                            Прибыли на место
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Bottom Dashboard -->
+        <div class="driver-dashboard">
+            <div class="dash-item">
+                <div class="dash-label">За сегодня</div>
+                <div class="dash-value" id="earnings-val">125 000 сум</div>
+            </div>
+            <div class="dash-item">
+                <div class="dash-label">Заказы</div>
+                <div class="dash-value">8</div>
+            </div>
+        </div>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRO LOGISTICS - Оператор</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <h2>Управление парком</h2>
+            <div class="user-info">Диспетчер #1</div>
+        </div>
+
+        <div class="admin-content" id="main-content">
+
+            <!-- VIEW: Garage (Own Fleet) -->
+            <div id="view-garage" class="tab-view">
+                <button class="btn-primary" style="margin-bottom:16px;" onclick="openAddForm('garage')">
+                    + Добавить в Гараж
+                </button>
+
+                <!-- Own Fleet List -->
+                <div class="admin-card" style="margin-top:20px;">
+                    <h3>Мой Гараж</h3>
+                    <div id="garage-list" class="fleet-list"></div>
+                </div>
+            </div>
+
+            <!-- VIEW: Subcontractors -->
+            <div id="view-subcontractor" class="tab-view hidden">
+                <button class="btn-primary" style="margin-bottom:16px; background-color:#e0e0e0;"
+                    onclick="openAddForm('subcontractor')">
+                    + Добавить Субподрядчика
+                </button>
+
+                <div id="subcontractor-list">
+                    <!-- Javascript will populate this -->
+                </div>
+            </div>
+
+            <!-- VIEW: Categories -->
+            <div id="view-categories" class="tab-view hidden">
+                <div class="admin-card">
+                    <h3>Категории техники</h3>
+                    <div class="add-category-row">
+                        <!-- Custom Emoji Dropdown -->
+                        <div class="custom-dropdown" id="emoji-dropdown">
+                            <div class="dropdown-trigger" id="emoji-trigger" onclick="toggleEmojiDropdown()">🚜</div>
+                            <div class="dropdown-options hidden" id="emoji-options">
+                                <div class="emoji-option" onclick="selectEmoji('🚜')">🚜</div>
+                                <div class="emoji-option" onclick="selectEmoji('🚛')">🚛</div>
+                                <div class="emoji-option" onclick="selectEmoji('🏗️')">🏗️</div>
+                                <div class="emoji-option" onclick="selectEmoji('🚐')">🚐</div>
+                                <div class="emoji-option" onclick="selectEmoji('🚙')">🚙</div>
+                                <div class="emoji-option" onclick="selectEmoji('🚌')">🚌</div>
+                                <div class="emoji-option" onclick="selectEmoji('🪜')">🪜</div>
+                                <div class="emoji-option" onclick="selectEmoji('🛑')">🛑</div>
+                                <div class="emoji-option" onclick="selectEmoji('🚧')">🚧</div>
+                                <div class="emoji-option" onclick="selectEmoji('🛠️')">🛠️</div>
+                            </div>
+                        </div>
+
+                        <input type="text" id="new-cat-name" placeholder="Название категории" class="cat-name-input">
+                        <button class="btn-primary btn-add" onclick="addCategory()">+</button>
+                    </div>
+                    <div id="categories-list" class="fleet-list"></div>
+                </div>
+            </div>
+
+            <!-- VIEW: Profile -->
+            <div id="view-profile" class="tab-view hidden">
+                <div class="admin-card">
+                    <h3>Профиль</h3>
+                    <div class="form-group">
+                        <label>Имя</label>
+                        <input type="text" value="Диспетчер #1" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Телефон</label>
+                        <input type="text" value="+7 999 000-00-00" readonly>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('garage')">
+            <div class="nav-icon"><i data-lucide="warehouse"></i></div>
+            <div class="nav-label">Гараж</div>
+        </div>
+        <div class="nav-item" onclick="switchTab('subcontractor')">
+            <div class="nav-icon"><i data-lucide="handshake"></i></div>
+            <div class="nav-label">Субподряд</div>
+        </div>
+        <div class="nav-item" onclick="switchTab('categories')">
+            <div class="nav-icon"><i data-lucide="list"></i></div>
+            <div class="nav-label">Категории</div>
+        </div>
+        <div class="nav-item" onclick="switchTab('profile')">
+            <div class="nav-icon"><i data-lucide="user"></i></div>
+            <div class="nav-label">Профиль</div>
+        </div>
+    </div>
+
+    <!-- Modal Backdrop -->
+    <div id="modal-backdrop" class="modal-backdrop hidden" onclick="closeAddForm()"></div>
+
+    <!-- Add Machine Modal Bottom Sheet -->
+    <div id="add-form-container" class="bottom-sheet-modal">
+        <div class="sheet-header">
+            <h3>Добавить технику</h3>
+            <button onclick="closeAddForm()"
+                style="background:none; border:none; font-size:24px; color:#999;">&times;</button>
+        </div>
+
+        <div class="sheet-content">
+            <div class="form-group">
+                <label>Тип техники</label>
+                <select id="new-machine-type">
+                    <option value="Excavator">Экскаватор</option>
+                    <option value="Crane">Автокран</option>
+                    <option value="Truck">Самосвал</option>
+                </select>
+            </div>
+            <!-- Ownership toggle hidden via JS when opened from specific button -->
+            <div class="form-group ownership-toggle">
+                <label>Принадлежность</label>
+                <div>
+                    <label><input type="radio" name="ownership" value="own" checked onchange="togglePartnerField()">
+                        Собственный</label>
+                    <label><input type="radio" name="ownership" value="partner" onchange="togglePartnerField()">
+                        Субподрядчик</label>
+                </div>
+            </div>
+            <div class="form-group hidden" id="partner-field-group">
+                <label>Название партнера</label>
+                <input type="text" id="partner-name" placeholder="Название компании">
+            </div>
+            <div class="form-group">
+                <label>Модель / Название</label>
+                <input type="text" id="new-machine-name" placeholder="например, JCB 4CX">
+            </div>
+            <div class="form-group">
+                <label>Госномер</label>
+                <input type="text" id="new-machine-plate" placeholder="A 000 AA 777">
+            </div>
+            <div class="form-group">
+                <label>Тариф</label>
+                <select id="pricing-type" style="margin-bottom:10px;" onchange="updatePricingFields()">
+                    <option value="hour">Только Маш/час</option>
+                    <option value="trip">Только Рейс</option>
+                    <option value="both">Маш/час + Рейс</option>
+                </select>
+            </div>
+
+            <div id="price-hour-group" class="form-group">
+                <label>Цена за маш/час (сум)</label>
+                <input type="number" id="price-hour" placeholder="Цена за час (сум)">
+                <div style="margin-top:8px; display: flex; align-items: center; gap: 10px;">
+                    <label style="font-size:12px; color:#666; margin-bottom: 0; white-space: nowrap;">Мин. заказ
+                        (маш/час):</label>
+                    <input type="number" id="min-hours" value="3" min="1" style="width: 70px; padding: 6px;">
+                </div>
+            </div>
+
+            <div id="price-trip-group" class="form-group hidden">
+                <label>Цена за рейс (сум)</label>
+                <input type="number" id="price-trip" placeholder="Цена за рейс (сум)">
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="delivery-check" onchange="toggleDeliveryField()">
+                    Для транспортировки машин необходим отдельный спецтранспорт?
+                </label>
+            </div>
+            <div class="form-group hidden" id="delivery-field-group">
+                <label>Стоимость доставки за 1 км</label>
+                <input type="number" id="delivery-cost" placeholder="Цена доставки за 1 км (сум)">
+            </div>
+            <button class="btn-primary" id="add-btn">Сохранить</button>
+            <div style="height:20px;"></div>
+        </div>
+    </div>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="script.js"></script>
+    <script>
+        // Init icons
+        if (window.lucide) {
+            lucide.createIcons();
+        } else {
+            /* Fallback or retry? Mostly just wait for load if async, but script is synchronous here. */
+            document.addEventListener('DOMContentLoaded', () => {
+                if (window.lucide) lucide.createIcons();
+            });
+        }
+    </script>
+</body>
+
+</html>

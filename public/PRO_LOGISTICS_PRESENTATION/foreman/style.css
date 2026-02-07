@@ -1,0 +1,612 @@
+/* Yandex Identity & Global Variables */
+:root {
+    --color-yandex-yellow: #ff3b30;
+    --color-yandex-yellow-hover: #cc2f26;
+    --color-yandex-black: #000000;
+    --color-yandex-white: #ffffff;
+    --color-yandex-red: #f00;
+    --color-background-primary: #f2f2f2;
+    --color-background-card: #ffffff;
+    --color-text-primary: #21201f;
+    --color-text-secondary: #7f7f7f;
+
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --radius-xl: 30px;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+    --font-family-base: 'Inter', sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: var(--font-family-base);
+    background-color: var(--color-background-primary);
+    color: var(--color-text-primary);
+    line-height: 1.5;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.full-height {
+    height: 100%;
+    position: relative;
+}
+
+/* Typography */
+h1,
+h2,
+h3 {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+/* Buttons */
+button {
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 500;
+    transition: transform 0.1s ease, background-color 0.2s;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+.btn-primary {
+    background-color: var(--color-yandex-yellow);
+    color: var(--color-yandex-black);
+    padding: 14px 28px;
+    border-radius: var(--radius-md);
+    font-size: 16px;
+    width: 100%;
+    text-align: center;
+    font-weight: 700;
+}
+
+.btn-primary:hover {
+    background-color: var(--color-yandex-yellow-hover);
+}
+
+.btn-primary:disabled {
+    background-color: #e0e0e0;
+    color: #a0a0a0;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* --- UI Components --- */
+
+/* User Location Marker Effect */
+/* Fixed Marker Overlay */
+.fixed-marker {
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    /* Translate -50% X (center), -100% Y (align bottom edge to top:30% line) */
+    transform: translate(-50%, -100%);
+    z-index: 900;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* Height is determined by content (Sign + Stick) */
+}
+
+.marker-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Hopping Animation State */
+.fixed-marker.hopping .marker-content {
+    transform: translateY(-15px);
+}
+
+.marker-sign {
+    background: #000;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    white-space: nowrap;
+    position: relative;
+    z-index: 2;
+}
+
+.marker-stick {
+    width: 4px;
+    height: 18px;
+    background: #000;
+    margin-top: -2px;
+    text-align: center;
+    border-radius: 0 0 2px 2px;
+    z-index: 1;
+}
+
+/* Shadow should not affect height/flow, it sits "under" the tip */
+.marker-shadow {
+    position: absolute;
+    bottom: -2px;
+    /* Place it just below the stick tip */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 10px;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 50%;
+    filter: blur(1px);
+    transition: all 0.2s ease;
+    z-index: -1;
+}
+
+/* When hopping, shadow stays on ground but shrinks */
+.fixed-marker.hopping .marker-shadow {
+    transform: translateX(-50%) scale(0.6);
+    opacity: 0.5;
+    filter: blur(2px);
+    bottom: -2px;
+    /* Ensure it stays pinned to the "ground" (the 30% line) */
+}
+
+/* Top Bar Container */
+.top-bar-container {
+    position: absolute;
+    top: var(--spacing-md);
+    left: var(--spacing-md);
+    right: var(--spacing-md);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.top-bar {
+    position: relative;
+    /* Reset absolute */
+    top: auto;
+    left: auto;
+    right: auto;
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.hidden {
+    display: none !important;
+}
+
+.mt-2 {
+    margin-top: 8px;
+}
+
+/* Mode Selection Cards */
+.mode-cards {
+    display: flex;
+    gap: 12px;
+}
+
+.mode-card {
+    flex: 1;
+    background: #f7f7f7;
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: 0.2s;
+}
+
+.mode-card:active {
+    transform: scale(0.98);
+}
+
+.mode-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+
+.mode-title {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.mode-desc {
+    font-size: 11px;
+    color: #777;
+}
+
+/* GPS Button */
+.gps-btn {
+    position: absolute;
+    bottom: 300px;
+    /* Above bottom sheet roughly */
+    right: 20px;
+    width: 48px;
+    height: 48px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.gps-btn:active {
+    transform: scale(0.95);
+    background: #f0f0f0;
+}
+
+/* Bottom Sheet */
+.bottom-sheet {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-background-card);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding: var(--spacing-md);
+    padding-bottom: var(--spacing-xl);
+    box-shadow: var(--shadow-float);
+    z-index: 1000;
+    animation: slideUp 0.3s ease-out;
+    max-height: auto;
+    /* Fit content */
+    overflow-y: visible;
+    /* No scroll */
+}
+
+/* Address Summary in Bottom Sheet */
+.address-summary {
+    display: flex;
+    align-items: center;
+    background: #f0f0f0;
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.address-icon-small {
+    font-size: 20px;
+    margin-right: 12px;
+    color: #000;
+}
+
+.address-details {
+    flex: 1;
+}
+
+.address-label {
+    font-size: 10px;
+    color: #777;
+    margin-bottom: 2px;
+}
+
+.address-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #000;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.address-edit {
+    font-size: 18px;
+    color: #777;
+    cursor: pointer;
+    margin-left: 8px;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+.sheet-handle {
+    width: 40px;
+    height: 4px;
+    background: #e0e0e0;
+    border-radius: 2px;
+    margin: 0 auto var(--spacing-md);
+}
+
+/* Equipment Slider */
+.equipment-slider {
+    display: flex;
+    overflow-x: auto;
+    gap: var(--spacing-sm);
+    padding-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    scrollbar-width: none;
+}
+
+.equipment-slider::-webkit-scrollbar {
+    display: none;
+}
+
+.equipment-item {
+    min-width: 100px;
+    height: 110px;
+    background: transparent;
+    /* Transparent by default (unselected) */
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-sm);
+    transition: 0.2s;
+    border: none;
+    /* No border */
+    cursor: pointer;
+}
+
+.equipment-item.active {
+    background: #f0f0f0;
+    /* Gray background for selected */
+    border: none;
+    /* No border */
+    box-shadow: none;
+    /* Remove shadow if not needed, or keep for subtle depth */
+    transform: scale(1.0);
+    /* Remove scale or keep? User didn't specify, but usually 'flat' design implies no scale. Let's keep smooth. */
+}
+
+.equipment-name {
+    font-size: 13px;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+.equipment-price {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+/* Order Actions */
+.order-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-top: 16px;
+}
+
+/* Form Styles */
+.form-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--color-text-secondary);
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px;
+    background: #f7f7f7;
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: 16px;
+}
+
+textarea.form-input {
+    resize: none;
+    /* or vertical */
+    min-height: 80px;
+}
+
+/* Payment Options */
+.payment-options {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.payment-option {
+    flex: 1;
+    padding: 10px;
+    background: #f7f7f7;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    border: 2px solid transparent;
+    white-space: nowrap;
+}
+
+.payment-option.active {
+    background: #fff;
+    border-color: var(--color-yandex-yellow);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Search Loader */
+/* Search Radar (Map Overlay) */
+.fixed-marker .radar-ring {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    /* Center of radar at the bottom tip of the marker */
+    transform: translate(-50%, 50%);
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+
+    /* High visibility style */
+    background: rgba(255, 59, 48, 0.4);
+    /* Bright Red Fill */
+    border: 3px solid rgba(255, 59, 48, 0.9);
+    /* Strong Red Border */
+    box-shadow: 0 0 20px rgba(255, 59, 48, 0.6);
+    /* Glow */
+
+    z-index: -2;
+    opacity: 0;
+    pointer-events: none;
+    box-sizing: border-box;
+    aspect-ratio: 1 / 1;
+    /* Force square/circle */
+}
+
+.fixed-marker.searching .radar-ring {
+    animation: map-radar 2s infinite ease-out;
+}
+
+.fixed-marker.searching .radar-ring.delay-1 {
+    animation-delay: 1s;
+}
+
+@keyframes map-radar {
+    0% {
+        width: 0;
+        height: 0;
+        opacity: 1;
+        border-width: 5px;
+    }
+
+    100% {
+        width: 300px;
+        height: 300px;
+        opacity: 0;
+        border-width: 0px;
+    }
+}
+
+/* Driver / Found Styles */
+.driver-card {
+    background: #f7f7f7;
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.driver-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.driver-avatar {
+    width: 48px;
+    height: 48px;
+    background: #ddd;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.driver-name {
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.driver-rating {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.machine-info-badge {
+    text-align: right;
+    font-weight: 600;
+    font-size: 13px;
+    background: #fff;
+    padding: 6px 10px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-sm);
+}
+
+.search-loader {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 24px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.search-icon {
+    font-size: 32px;
+    z-index: 2;
+    animation: bounce 1s infinite alternate;
+}
+
+.radar-ring {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(255, 59, 48, 0.3);
+    z-index: 1;
+    animation: radar 2s infinite ease-out;
+}
+
+.radar-ring.delay-1 {
+    animation-delay: 1s;
+}
+
+@keyframes radar {
+    0% {
+        transform: scale(0.5);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+@keyframes bounce {
+    from {
+        transform: scale(1);
+    }
+
+    to {
+        transform: scale(1.1);
+    }
+}

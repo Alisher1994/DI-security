@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PRO LOGISTICS - Прораб</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- Remix Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <!-- Leaflet Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Main Style -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- App Container -->
+    <div id="app" class="full-height">
+        <!-- Map Container -->
+        <div id="map" style="height: 100%; width: 100%; z-index: 1;"></div>
+
+        <!-- Fixed Center Marker (Overlay) -->
+        <div id="fixed-marker" class="fixed-marker">
+            <div class="marker-content">
+                <div class="marker-sign">Вы здесь</div>
+                <div class="marker-stick"></div>
+            </div>
+            <!-- Radar Rings (Hidden by default, shown when searching) -->
+            <div class="radar-ring"></div>
+            <div class="radar-ring delay-1"></div>
+
+            <div class="marker-shadow"></div>
+        </div>
+
+        <!-- Top Search Bar (Floating) -->
+        <div class="top-bar-container">
+            <div class="top-bar" id="search-bar-to">
+                <div
+                    style="background:white; padding:12px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.1); display:flex; gap:10px; align-items:center; flex:1;">
+                    <span style="color:green; font-weight:700;">●</span>
+                    <span id="address-to" style="font-size:14px; font-weight:500;">Куда подать технику?</span>
+                </div>
+            </div>
+            <!-- Search From (Cargo only) -->
+            <div class="top-bar hidden mt-2" id="search-bar-from">
+                <div
+                    style="background:white; padding:12px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.1); display:flex; gap:10px; align-items:center; flex:1;">
+                    <span style="color:red; font-weight:700;">●</span>
+                    <span style="font-size:14px; font-weight:500;">Откуда забрать?</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- GPS Button -->
+        <div class="gps-btn" onclick="locateUser()">
+            🔘
+        </div>
+
+        <!-- Bottom Sheet -->
+        <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+
+            <!-- Step 0: Mode Selection -->
+            <div id="step-mode">
+                <h3 style="margin-bottom:16px;">Что заказываем?</h3>
+                <div class="mode-cards">
+                    <div class="mode-card" onclick="selectMode('special')">
+                        <div class="mode-icon">🚜</div>
+                        <div class="mode-title">Спецтехника</div>
+                        <div class="mode-desc">Экскаваторы, Краны</div>
+                    </div>
+                    <div class="mode-card" onclick="selectMode('cargo')">
+                        <div class="mode-icon">🚛</div>
+                        <div class="mode-title">Грузовой</div>
+                        <div class="mode-desc">Перевозки, Шаланды</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 1: Category Selection -->
+            <div id="step-category" class="hidden">
+                <div style="display:flex; align-items:center; margin-bottom:12px;">
+                    <div class="back-btn" onclick="showStep('mode')" style="margin-right:10px; cursor:pointer;">
+                        <i class="ri-arrow-left-line" style="font-size:20px;"></i>
+                    </div>
+                    <h3 id="category-title">Выберите категорию</h3>
+                </div>
+
+                <!-- Address Summary Block -->
+                <div class="address-summary">
+                    <div class="address-icon-small">📍</div>
+                    <div class="address-details">
+                        <div class="address-label">Адрес подачи</div>
+                        <div class="address-value">Ташкент, ул. Амира Темура, 1</div>
+                    </div>
+                    <div class="address-edit">✏️</div>
+                </div>
+
+                <div class="equipment-slider" id="category-slider">
+                    <!-- Javascript will populate this -->
+                </div>
+                <div class="order-actions">
+                    <button class="btn-primary" id="btn-next" disabled>
+                        Далее
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 2: Machine Selection -->
+            <div id="step-machine" class="hidden">
+                <div style="display:flex; align-items:center; margin-bottom:12px;">
+                    <div class="back-btn" onclick="showStep('category')" style="margin-right:10px; cursor:pointer;">
+                        <i class="ri-arrow-left-line" style="font-size:20px;"></i>
+                    </div>
+                    <h3>Выберите технику</h3>
+                </div>
+
+                <div class="equipment-slider" id="machine-slider">
+                    <!-- Javascript will populate this -->
+                </div>
+
+                <div class="order-actions">
+                    <button class="btn-primary" id="btn-to-form" disabled>
+                        Перейти к оформлению
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 3: Order Form -->
+            <div id="step-form" class="hidden">
+                <div style="display:flex; align-items:center; margin-bottom:12px;">
+                    <div class="back-btn" onclick="showStep('machine')" style="margin-right:10px; cursor:pointer;">
+                        <i class="ri-arrow-left-line" style="font-size:20px;"></i>
+                    </div>
+                    <h3>Детали заказа</h3>
+                </div>
+
+                <div class="form-container">
+                    <div class="form-group">
+                        <label>Дата начала</label>
+                        <input type="date" class="form-input" id="order-date">
+                    </div>
+                    <div class="form-group">
+                        <label>Время подачи</label>
+                        <input type="time" class="form-input" id="order-time">
+                    </div>
+                    <div class="form-group">
+                        <label>Комментарий к заказу</label>
+                        <textarea class="form-input" id="order-comment" rows="2"
+                            placeholder="Например: въезд через арку..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Способ оплаты</label>
+                        <div class="payment-options">
+                            <div class="payment-option active" onclick="selectPayment('cash', this)">
+                                💵 Наличные
+                            </div>
+                            <div class="payment-option" onclick="selectPayment('card', this)">
+                                💳 Карта
+                            </div>
+                            <div class="payment-option" onclick="selectPayment('transfer', this)">
+                                🏦 Перечисление
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="order-actions">
+                    <button class="btn-primary" id="btn-order">
+                        Заказать
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 4: Search -->
+            <div id="step-search" class="hidden" style="text-align: center; padding: 20px 0;">
+                <h3 style="margin-bottom: 8px;">Поиск исполнителей...</h3>
+                <p style="color: #777; font-size: 13px; margin-bottom: 24px;">
+                    Мы предложили ваш заказ
+                    <span style="color: #000; font-weight: 600;">5</span> партнерам рядом
+                </p>
+
+                <button class="btn-primary" style="background:#f2f2f2; color:#000;" onclick="cancelSearch()">
+                    Отменить
+                </button>
+            </div>
+
+            <!-- Step 5: Found / Active Order -->
+            <div id="step-found" class="hidden">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <div>
+                        <div style="font-size:18px; font-weight:700;">Через 15 мин</div>
+                        <div style="font-size:13px; color:#777;">Водитель в пути</div>
+                    </div>
+                    <div
+                        style="background:#f0f0f0; padding:6px 10px; border-radius:8px; font-size:12px; font-weight:600;">
+                        350 000 сум/ч
+                    </div>
+                </div>
+
+                <!-- Driver Card -->
+                <div class="driver-card">
+                    <div class="driver-info">
+                        <div class="driver-avatar">🧔🏻‍♂️</div>
+                        <div>
+                            <div class="driver-name">Алишер В.</div>
+                            <div class="driver-rating">⭐ 4.9 (142 заказа)</div>
+                        </div>
+                    </div>
+                    <div class="machine-info-badge">
+                        🚜 JCB 3CX Super
+                        <div style="font-size:11px; color:#555; margin-top:2px;">01 A 777 AA</div>
+                    </div>
+                </div>
+
+                <div class="order-actions" style="flex-direction:row;">
+                    <button class="btn-primary" style="background:#4CAF50; color:white; flex:1;">
+                        📞 Позвонить
+                    </button>
+                    <button class="btn-primary" style="background:#f2f2f2; color:black; flex:1;">
+                        💬 Чат
+                    </button>
+                </div>
+
+                <div style="text-align:center; margin-top:12px;">
+                    <span style="color:#d32f2f; font-size:13px; font-weight:500; cursor:pointer;"
+                        onclick="cancelSearch()">Отменить заказ</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Logic -->
+    <script src="script.js"></script>
+</body>
+
+</html>
